@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, ExternalLink, Trash2, Pencil } from "lucide-react";
+import { Plus, ExternalLink, Trash2, Pencil, Shield } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin } from "@/lib/use-admin";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({ component: Dashboard });
 
