@@ -84,6 +84,7 @@ export type Database = {
           name: string
           original_zip_url: string | null
           preview_url: string | null
+          seo: Json
           thumbnail_url: string | null
           updated_at: string
           user_id: string
@@ -98,6 +99,7 @@ export type Database = {
           name?: string
           original_zip_url?: string | null
           preview_url?: string | null
+          seo?: Json
           thumbnail_url?: string | null
           updated_at?: string
           user_id: string
@@ -112,6 +114,7 @@ export type Database = {
           name?: string
           original_zip_url?: string | null
           preview_url?: string | null
+          seo?: Json
           thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
