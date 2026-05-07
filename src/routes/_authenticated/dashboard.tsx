@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, ExternalLink, Trash2, Pencil } from "lucide-react";
+import { Plus, ExternalLink, Trash2, Pencil, Shield } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin } from "@/lib/use-admin";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({ component: Dashboard });
 
@@ -14,6 +15,7 @@ type Project = {
 
 function Dashboard() {
   const { user } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const nav = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,9 +56,16 @@ function Dashboard() {
           <div className="text-xs font-display uppercase tracking-widest text-muted-foreground">Workspace</div>
           <h1 className="text-4xl mt-1">Your projects</h1>
         </div>
-        <button onClick={() => nav({ to: "/upload" })} className="btn-primary">
-          <Plus size={18} /> New project
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link to="/admin" className="btn-ghost">
+              <Shield size={16} /> Admin
+            </Link>
+          )}
+          <button onClick={() => nav({ to: "/upload" })} className="btn-primary">
+            <Plus size={18} /> New project
+          </button>
+        </div>
       </div>
 
       {loading ? (
