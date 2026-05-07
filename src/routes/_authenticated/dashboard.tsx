@@ -56,9 +56,16 @@ function Dashboard() {
           <div className="text-xs font-display uppercase tracking-widest text-muted-foreground">Workspace</div>
           <h1 className="text-4xl mt-1">Your projects</h1>
         </div>
-        <button onClick={() => nav({ to: "/upload" })} className="btn-primary">
-          <Plus size={18} /> New project
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link to="/admin" className="btn-ghost">
+              <Shield size={16} /> Admin
+            </Link>
+          )}
+          <button onClick={() => nav({ to: "/upload" })} className="btn-primary">
+            <Plus size={18} /> New project
+          </button>
+        </div>
       </div>
 
       {loading ? (
