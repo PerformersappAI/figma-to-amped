@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_history: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          project_id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          project_id: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          project_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          css_content: string | null
+          grapesjson: Json | null
+          html_content: string | null
+          id: string
+          is_published: boolean
+          name: string
+          original_zip_url: string | null
+          preview_url: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          css_content?: string | null
+          grapesjson?: Json | null
+          html_content?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          original_zip_url?: string | null
+          preview_url?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          css_content?: string | null
+          grapesjson?: Json | null
+          html_content?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          original_zip_url?: string | null
+          preview_url?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
