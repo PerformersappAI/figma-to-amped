@@ -84,7 +84,9 @@ function EditorPage() {
         .eq("id", id).single();
       if (!mounted || !data || !ref.current) return;
       setName(data.name);
-      if (data.seo && typeof data.seo === "object") setSeo((s: any) => ({ ...s, ...data.seo }));
+      if (data.seo && typeof data.seo === "object" && !Array.isArray(data.seo)) {
+        setSeo((s: any) => ({ ...s, ...(data.seo as Record<string, any>) }));
+      }
 
       const editor = grapesjs.init({
         container: ref.current,
