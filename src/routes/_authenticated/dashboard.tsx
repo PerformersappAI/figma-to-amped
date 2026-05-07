@@ -15,6 +15,7 @@ type Project = {
 
 function Dashboard() {
   const { user } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const nav = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
