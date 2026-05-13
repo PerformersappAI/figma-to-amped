@@ -196,34 +196,7 @@ function UploadPage() {
     });
   }
 
-  async function buildBatch() {
-    if (!session || !user || !figmaResult?.fileKey || selectedIds.size === 0) return;
-    setStarting(true);
-    const frames = allFrames.filter(f => selectedIds.has(f.nodeId)).map(f => ({ nodeId: f.nodeId, name: f.name }));
-    const thumbs: Record<string, string | null> = {};
-    allFrames.forEach(f => { if (selectedIds.has(f.nodeId)) thumbs[f.nodeId] = f.thumbnail ?? null; });
-    try {
-      const r = await fetch("/api/figma/convert-batch", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-        body: JSON.stringify({ fileKey: figmaResult.fileKey, fileName: figmaResult.name, frames }),
-      });
-      // Don't await full body — POST blocks until done. We need progress NOW, so kick off
-      // a separate polling/realtime. Open the overlay on a project lookup.
-      // Instead: parse response after it completes. But realtime fires DURING the request.
-      // So: read the response, but in parallel, fetch project rows as they arrive via realtime.
-      // To get projectId before the long request finishes, we'd need a separate "create" call.
-      // Simpler: do realtime via project name+user — but cleanest is to split into two steps.
-      // For now, since Realtime works during the long request, we need projectId immediately.
-      // We'll create the project client-side first, then pass projectId to batch endpoint.
-      const data = await r.json();
-      if (!r.ok) throw new Error(data?.error || "Batch failed");
-      setBatch({ projectId: data.projectId, rows: [], thumbs });
-    } catch (e: any) {
-      toast.error(e.message || "Batch failed");
-      setStarting(false);
-    }
-  }
+  // (single-step batch implemented in buildBatchV2 below)
 
   // Better approach: pre-create the project client-side and pass projectId so we can subscribe immediately
   async function buildBatchV2() {
