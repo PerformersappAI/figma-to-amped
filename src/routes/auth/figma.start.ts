@@ -38,7 +38,10 @@ export const Route = createFileRoute("/auth/figma/start")({
         const authUrl = new URL("https://www.figma.com/oauth");
         authUrl.searchParams.set("client_id", clientId);
         authUrl.searchParams.set("redirect_uri", redirectUri);
-        authUrl.searchParams.set("scope", "file_read");
+        authUrl.searchParams.set(
+          "scope",
+          "file_content:read file_metadata:read current_user:read"
+        );
         authUrl.searchParams.set("state", state);
         authUrl.searchParams.set("response_type", "code");
 
