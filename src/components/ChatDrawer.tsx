@@ -13,7 +13,9 @@ const QUICK_ACTIONS = [
   "Add a call to action",
 ];
 
-export function ChatDrawer({ open, onClose, projectId }: { open: boolean; onClose: () => void; projectId: string }) {
+export function ChatDrawer({ open, onClose, projectId, figmaReference }: { open: boolean; onClose: () => void; projectId: string; figmaReference?: string | null }) {
+  // figmaReference is stored for future agentic edits (Phase 3); currently unused in prompts.
+  void figmaReference;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
