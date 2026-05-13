@@ -10,7 +10,7 @@ function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between px-6 py-5 border-b border-border">
         <div className="font-display text-2xl tracking-wider">
-          FIGMA<span style={{ color: "var(--accent)" }}>SHIP</span>
+          AMPED <span className="text-muted-foreground">—</span> FIGMA<span style={{ color: "var(--accent)" }}>SHIP</span>
         </div>
         <nav className="flex items-center gap-3">
           <Link to="/login" className="btn-ghost text-sm">Sign in</Link>
