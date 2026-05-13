@@ -247,6 +247,21 @@ function EditorPage() {
           <div id="hidden-blocks" style={{ display: "none" }} />
         </div>
 
+        {/* FIGMA REFERENCE PANEL */}
+        {figmaRef && figmaPanelOpen && (
+          <aside className="flex flex-col" style={{ width: "30vw", minWidth: 280, background: "#0d0d0d", borderLeft: "1px solid #1e1e1e" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
+              <div className="font-display uppercase tracking-widest text-[10px] flex items-center gap-2" style={{ color: "#c8f000" }}>
+                <Figma size={11} /> Figma Reference
+              </div>
+              <button onClick={() => setFigmaPanelOpen(false)} className="text-[#555] hover:text-white"><X size={14} /></button>
+            </div>
+            <div className="flex-1 overflow-auto p-3">
+              <img src={figmaRef} alt="Original Figma design" style={{ width: "100%", height: "auto", display: "block" }} />
+            </div>
+          </aside>
+        )}
+
         {/* RIGHT PANEL */}
         <aside className="flex flex-col" style={{ width: 280, background: "#111", borderLeft: "1px solid #1e1e1e" }}>
           <div className="px-4 py-3 font-display uppercase tracking-widest text-[10px]" style={{ color: "#555", borderBottom: "1px solid #1e1e1e" }}>
