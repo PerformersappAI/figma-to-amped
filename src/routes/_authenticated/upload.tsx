@@ -243,8 +243,7 @@ function UploadPage() {
     }
   }
 
-  // Use V2; ignore V1
-  void buildBatch;
+
 
   async function retryPage(pageId: string, nodeId: string) {
     if (!batch || !session || !figmaResult?.fileKey) return;
