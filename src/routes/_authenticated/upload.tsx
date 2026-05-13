@@ -196,47 +196,102 @@ function UploadPage() {
     });
   }
 
-  // (single-step batch implemented in buildBatchV2 below)
+  function slugify(s: string): string {
+    return (s || "").toLowerCase().trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "page";
+  }
 
-  // Better approach: pre-create the project client-side and pass projectId so we can subscribe immediately
+  // Client-driven batch: pre-create project + all page rows, then convert each page in
+  // parallel via the single-page endpoint. This avoids a single long-running Worker
+  // request that can time out mid-loop and leave pages un-inserted.
   async function buildBatchV2() {
     if (!session || !user || !figmaResult?.fileKey || selectedIds.size === 0) return;
     setStarting(true);
     try {
-      const frames = allFrames.filter(f => selectedIds.has(f.nodeId)).map(f => ({ nodeId: f.nodeId, name: f.name }));
+      const selectedFrames = allFrames.filter(f => selectedIds.has(f.nodeId));
       const thumbs: Record<string, string | null> = {};
-      allFrames.forEach(f => { if (selectedIds.has(f.nodeId)) thumbs[f.nodeId] = f.thumbnail ?? null; });
+      selectedFrames.forEach(f => { thumbs[f.nodeId] = f.thumbnail ?? null; });
 
-      // Pre-create project so we can subscribe immediately
+      // 1. Pre-create the project
       const { data: project, error: projErr } = await supabase
         .from("projects")
         .insert({
           user_id: user.id,
           name: figmaResult.name || "Figma project",
-          figma_metadata: { fileKey: figmaResult.fileKey, sourceFrames: frames.length },
+          figma_metadata: { fileKey: figmaResult.fileKey, sourceFrames: selectedFrames.length },
         })
         .select("id").single();
       if (projErr || !project) throw projErr || new Error("Couldn't create project");
 
-      // Open the overlay before kicking off — subscription starts via the effect
-      setBatch({ projectId: project.id, rows: [], thumbs });
+      // 2. Pre-insert ALL page rows up front so the total is known immediately
+      //    and Realtime + UI have something concrete to render.
+      const usedSlugs = new Set<string>();
+      const pageInserts = selectedFrames.map((f, i) => {
+        let base = slugify(f.name || `page-${i + 1}`);
+        let candidate = base;
+        let n = 2;
+        while (usedSlugs.has(candidate)) candidate = `${base}-${n++}`;
+        usedSlugs.add(candidate);
+        return {
+          project_id: project.id,
+          name: f.name,
+          slug: candidate,
+          figma_node_id: f.nodeId,
+          order_index: i,
+          is_home: i === 0,
+          status: "pending",
+        };
+      });
+      const { data: insertedPages, error: pagesErr } = await supabase
+        .from("pages").insert(pageInserts).select("id, name, status, figma_node_id");
+      if (pagesErr || !insertedPages) throw pagesErr || new Error("Couldn't create pages");
 
-      // Fire batch (long-running). We don't need its body to drive UI; realtime drives it.
-      fetch("/api/figma/convert-batch", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-        body: JSON.stringify({
-          fileKey: figmaResult.fileKey,
-          fileName: figmaResult.name,
-          frames,
-          projectId: project.id,
-        }),
-      }).then(async r => {
-        if (!r.ok) {
-          const d = await r.json().catch(() => ({}));
-          toast.error(d?.error || "Some pages failed");
+      // 3. Open the overlay with the full known list so total is correct from the start.
+      const initialRows: PageRow[] = insertedPages.map(p => ({
+        id: p.id, name: p.name, status: p.status,
+        figma_node_id: p.figma_node_id as string, error_message: null,
+      }));
+      setBatch({ projectId: project.id, rows: initialRows, thumbs });
+
+      // 4. Convert each page in parallel (cap concurrency to 2 to be polite to Figma + Claude)
+      const queue = [...insertedPages];
+      const CONCURRENCY = 2;
+      const runOne = async (page: { id: string; figma_node_id: string | null }) => {
+        const nodeId = page.figma_node_id!;
+        await supabase.from("pages").update({ status: "building" }).eq("id", page.id);
+        try {
+          const r = await fetch("/api/figma/convert", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+            body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: project.id }),
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data?.error || "Conversion failed");
+          await supabase.from("pages").update({
+            status: "ready",
+            html: data.html,
+            css: data.css,
+            figma_design_reference_url: data.designReference,
+            figma_metadata: data.metadata,
+            error_message: null,
+          }).eq("id", page.id);
+        } catch (e: any) {
+          console.error("convert page failed", nodeId, e);
+          await supabase.from("pages").update({
+            status: "failed",
+            error_message: e?.message || "Conversion failed",
+          }).eq("id", page.id);
         }
-      }).catch(e => toast.error(e?.message || "Batch failed"));
+      };
+      const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        while (queue.length) {
+          const next = queue.shift();
+          if (next) await runOne(next);
+        }
+      });
+      Promise.all(workers).catch(e => console.error("batch workers", e));
     } catch (e: any) {
       toast.error(e.message || "Couldn't start build");
       setStarting(false);
