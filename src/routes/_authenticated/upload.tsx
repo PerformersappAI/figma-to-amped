@@ -286,21 +286,66 @@ function UploadPage() {
             )}
 
             {figmaResult && (
-              <div className="mt-4 p-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
-                <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-2">
-                  {figmaResult.name} — {figmaResult.pages.length} page{figmaResult.pages.length === 1 ? "" : "s"} found
+              <div className="mt-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                <div className="px-4 pt-4 pb-2 text-xs font-display uppercase tracking-widest text-muted-foreground">
+                  {figmaResult.name} — Pick one frame to convert
                 </div>
-                <ul className="text-sm space-y-1">
+                <div className="max-h-[420px] overflow-auto px-2 pb-2">
                   {figmaResult.pages.map(p => (
-                    <li key={p.nodeId} className="flex items-center justify-between gap-2">
-                      <span>{p.name}</span>
-                      <code className="text-xs text-muted-foreground">{p.nodeId}</code>
-                    </li>
+                    <div key={p.nodeId} className="mb-2">
+                      <div className="px-2 py-1 text-[10px] font-display uppercase tracking-widest" style={{ color: "var(--accent)" }}>
+                        {p.name}
+                      </div>
+                      {p.frames.length === 0 && (
+                        <div className="px-2 py-2 text-xs text-muted-foreground">No top-level frames on this page.</div>
+                      )}
+                      {p.frames.map(f => {
+                        const selected = selectedFrame?.nodeId === f.nodeId;
+                        return (
+                          <button
+                            key={f.nodeId}
+                            onClick={() => setSelectedFrame({ pageId: p.nodeId, nodeId: f.nodeId })}
+                            className="w-full text-left flex items-center gap-3 p-2 rounded transition-colors"
+                            style={{
+                              background: selected ? "rgba(200,240,0,0.08)" : "transparent",
+                              border: `1px solid ${selected ? "var(--accent)" : "transparent"}`,
+                            }}
+                          >
+                            <div
+                              className="flex items-center justify-center shrink-0"
+                              style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${selected ? "var(--accent)" : "#444"}` }}
+                            >
+                              {selected && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />}
+                            </div>
+                            <div className="shrink-0" style={{ width: 56, height: 40, background: "#1a1a1a", borderRadius: 3, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {f.thumbnail ? (
+                                <img src={f.thumbnail} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                              ) : (
+                                <span className="text-[9px] text-muted-foreground">no preview</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm truncate">{f.name}</div>
+                              <div className="text-[10px] text-muted-foreground">{f.width} × {f.height}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   ))}
-                </ul>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Page selection and conversion come in the next phase.
-                </p>
+                </div>
+                <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedFrame ? "1 frame selected" : "Select a frame to continue"}
+                  </div>
+                  <button
+                    onClick={convertFrame}
+                    disabled={!selectedFrame || converting}
+                    className="btn-primary"
+                  >
+                    {converting ? "Converting…" : "Convert →"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
