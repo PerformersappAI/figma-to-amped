@@ -195,7 +195,7 @@ function UploadPage() {
       const frame = figmaResult.pages
         .flatMap(p => p.frames)
         .find(f => f.nodeId === selectedFrame.nodeId);
-      const projectName = `${figmaResult.name || "Figma"} — ${frame?.name || "Frame"}`;
+      const projectName = `${figmaResult.name || "Figma"} — ${frame?.name || "Page"}`;
       const { data: project, error } = await supabase
         .from("projects")
         .insert({
