@@ -1,7 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { convertFrame, collectImageRefs } from "@/lib/figma-convert";
+import { convertFrame, collectImageRefs, collectVectorNodeIds } from "@/lib/figma-convert";
+
+/**
+ * Conservative SVG sanitizer for Worker runtime (no DOM).
+ * Strips scripts, event handlers, javascript: URLs, external href references,
+ * and foreignObject content. Allows standard SVG markup otherwise.
+ */
+function sanitizeSvg(svg: string): string {
+  let s = svg;
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
+  s = s.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "");
+  s = s.replace(/\s(on[a-z]+)\s*=\s*"[^"]*"/gi, "");
+  s = s.replace(/\s(on[a-z]+)\s*=\s*'[^']*'/gi, "");
+  s = s.replace(/(href|xlink:href)\s*=\s*"\s*javascript:[^"]*"/gi, "");
+  s = s.replace(/(href|xlink:href)\s*=\s*'\s*javascript:[^']*'/gi, "");
+  // Drop external href references in <use>/<image> (keep relative #id refs)
+  s = s.replace(/(href|xlink:href)\s*=\s*"https?:\/\/[^"]*"/gi, "");
+  s = s.replace(/(href|xlink:href)\s*=\s*'https?:\/\/[^']*'/gi, "");
+  return s.trim();
+}
+
 
 function json(body: any, status = 200) {
   return new Response(JSON.stringify(body), {
