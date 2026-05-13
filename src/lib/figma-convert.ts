@@ -227,10 +227,22 @@ function convertNode(node: any, ctx: ConvertCtx, depth = 0, isRoot = false): str
     return `<div class="${cls}"></div>`;
   }
 
-  if (node.type === "VECTOR" || node.type === "BOOLEAN_OPERATION" || node.type === "STAR" || node.type === "LINE" || node.type === "REGULAR_POLYGON") {
-    const { style } = nodeStyle(node, ctx, isRoot);
-    ctx.cssRules.set(cls, style);
-    return `<div class="${cls}" data-figma-vector="${node.type}"><!-- vector --></div>`;
+  // Vector primitives + groups composed entirely of vectors → inline SVG
+  if (isVectorElement(node)) {
+    const bbox = node.absoluteBoundingBox;
+    const w = Math.max(1, Math.round(bbox?.width || 24));
+    const h = Math.max(1, Math.round(bbox?.height || 24));
+    const svg = ctx.vectorSvgMap[node.id];
+    ctx.cssRules.set(cls, {
+      display: "inline-block",
+      width: `${w}px`,
+      height: `${h}px`,
+      "vertical-align": "middle",
+    });
+    const inner = svg
+      ? svg
+      : `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="${w}" height="${h}" fill="rgba(255,255,255,0.05)"/></svg>`;
+    return `<span class="figma-vector ${cls}" data-figma-vector="${node.type}" aria-hidden="true">${inner}</span>`;
   }
 
   // FRAME, GROUP, INSTANCE, COMPONENT, COMPONENT_SET → div container
