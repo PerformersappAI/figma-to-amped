@@ -324,69 +324,135 @@ function UploadPage() {
               <div className="mt-3 text-sm" style={{ color: "#ff6b6b" }}>{figmaError}</div>
             )}
 
-            {figmaResult && (
-              <div className="mt-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
-                <div className="px-4 pt-4 pb-2 text-xs font-display uppercase tracking-widest text-muted-foreground">
-                  {figmaResult.name} — Pick one frame to convert
-                </div>
-                <div className="max-h-[420px] overflow-auto px-2 pb-2">
-                  {figmaResult.pages.map(p => (
-                    <div key={p.nodeId} className="mb-2">
-                      <div className="px-2 py-1 text-[10px] font-display uppercase tracking-widest" style={{ color: "var(--accent)" }}>
-                        {p.name}
-                      </div>
-                      {p.frames.length === 0 && (
-                        <div className="px-2 py-2 text-xs text-muted-foreground">No top-level frames on this page.</div>
-                      )}
-                      {p.frames.map(f => {
-                        const selected = selectedFrame?.nodeId === f.nodeId;
-                        return (
-                          <button
-                            key={f.nodeId}
-                            onClick={() => setSelectedFrame({ pageId: p.nodeId, nodeId: f.nodeId })}
-                            className="w-full text-left flex items-center gap-3 p-2 rounded transition-colors"
-                            style={{
-                              background: selected ? "rgba(200,240,0,0.08)" : "transparent",
-                              border: `1px solid ${selected ? "var(--accent)" : "transparent"}`,
-                            }}
-                          >
-                            <div
-                              className="flex items-center justify-center shrink-0"
-                              style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${selected ? "var(--accent)" : "#444"}` }}
-                            >
-                              {selected && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />}
-                            </div>
-                            <div className="shrink-0" style={{ width: 56, height: 40, background: "#1a1a1a", borderRadius: 3, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              {f.thumbnail ? (
-                                <img src={f.thumbnail} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-                              ) : (
-                                <span className="text-[9px] text-muted-foreground">no preview</span>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm truncate">{f.name}</div>
-                              <div className="text-[10px] text-muted-foreground">{f.width} × {f.height}</div>
-                            </div>
-                          </button>
-                        );
-                      })}
+            {figmaImporting && !figmaResult && (
+              <div className="mt-4 rounded p-3 space-y-2" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-2">
+                    <div className="skeleton-shimmer" style={{ width: 14, height: 14, borderRadius: "50%" }} />
+                    <div className="skeleton-shimmer shrink-0" style={{ width: 80, height: 60 }} />
+                    <div className="flex-1 space-y-2">
+                      <div className="skeleton-shimmer" style={{ height: 14, width: "60%" }} />
+                      <div className="skeleton-shimmer" style={{ height: 10, width: "30%" }} />
                     </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
-                  <div className="text-xs text-muted-foreground">
-                    {selectedFrame ? "1 frame selected" : "Select a frame to continue"}
                   </div>
-                  <button
-                    onClick={convertFrame}
-                    disabled={!selectedFrame || converting}
-                    className="btn-primary"
-                  >
-                    {converting ? "Converting…" : "Convert →"}
-                  </button>
-                </div>
+                ))}
               </div>
             )}
+
+            {figmaResult && (() => {
+              const allPages = figmaResult.pages;
+              const allFrames = allPages.flatMap(p => p.frames.map(f => ({ ...f, pageId: p.nodeId, pageName: p.name })));
+              const totalFrames = allFrames.length;
+              // Hide generic "Page N" group headers; only show meaningful ones
+              const showGroupHeaders = allPages.length > 1 && allPages.some(p => !/^page\s*\d+$/i.test(p.name.trim()));
+              const selectedCount = selectedFrame ? 1 : 0;
+
+              if (totalFrames === 0) {
+                return (
+                  <div className="mt-4 rounded p-8 text-center" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                    <div className="text-sm mb-2">No pages found in this file.</div>
+                    <div className="text-xs text-muted-foreground mb-3">Make sure your design is inside a Frame, not floating on the canvas.</div>
+                    <a href="https://help.figma.com/hc/en-us/articles/360041064173-Frames-in-Figma" target="_blank" rel="noopener noreferrer" className="text-xs underline" style={{ color: "var(--accent)" }}>
+                      Learn how →
+                    </a>
+                  </div>
+                );
+              }
+
+              const renderFrame = (f: typeof allFrames[number]) => {
+                const selected = selectedFrame?.nodeId === f.nodeId;
+                const badge = deviceBadge(f.width);
+                const hue = hashHue(f.name);
+                return (
+                  <button
+                    key={f.nodeId}
+                    onClick={() => setSelectedFrame({ pageId: f.pageId, nodeId: f.nodeId })}
+                    aria-label={`Select page ${f.name}`}
+                    title={`${f.width} × ${f.height}`}
+                    className="w-full text-left flex items-center gap-3 p-3 rounded transition-all"
+                    style={{
+                      background: selected ? "rgba(200,240,0,0.10)" : "transparent",
+                      border: `1px solid ${selected ? "var(--accent)" : "transparent"}`,
+                      boxShadow: selected ? "0 0 0 3px rgba(200,240,0,0.15)" : "none",
+                    }}
+                  >
+                    <div
+                      className="flex items-center justify-center shrink-0"
+                      style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${selected ? "var(--accent)" : "#444"}` }}
+                    >
+                      {selected && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent)" }} />}
+                    </div>
+                    <div
+                      className="shrink-0 flex items-center justify-center"
+                      style={{
+                        width: 80,
+                        height: 60,
+                        background: f.thumbnail ? "#1a1a1a" : `linear-gradient(135deg, hsl(${hue} 40% 18%), hsl(${(hue + 40) % 360} 50% 28%))`,
+                        borderRadius: 4,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {f.thumbnail ? (
+                        <img src={f.thumbnail} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      ) : (
+                        <span className="text-[10px] font-display uppercase tracking-widest text-center px-1" style={{ color: "rgba(255,255,255,0.85)" }}>
+                          {f.name.length > 18 ? f.name.slice(0, 16) + "…" : f.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <div className="text-base truncate font-display">{f.name}</div>
+                      <span
+                        className="text-[10px] font-display uppercase tracking-widest px-2 py-0.5 rounded shrink-0"
+                        style={{ background: "rgba(255,255,255,0.06)", color: badge.color, border: `1px solid ${badge.color}` }}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                  </button>
+                );
+              };
+
+              return (
+                <div className="mt-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                  <div className="px-4 pt-4 pb-2 text-xs font-display uppercase tracking-widest text-muted-foreground">
+                    {figmaResult.name} — Pick which page you want to publish
+                  </div>
+                  <div className="max-h-[480px] overflow-auto px-2 pb-2">
+                    {showGroupHeaders ? (
+                      allPages.map(p => (
+                        <div key={p.nodeId} className="mb-2">
+                          {!/^page\s*\d+$/i.test(p.name.trim()) && (
+                            <div className="px-2 py-1 text-[10px] font-display uppercase tracking-widest" style={{ color: "var(--accent)" }}>
+                              {p.name}
+                            </div>
+                          )}
+                          {p.frames.map(f => renderFrame({ ...f, pageId: p.nodeId, pageName: p.name }))}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="space-y-1">
+                        {allFrames.map(renderFrame)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+                    <div className="text-xs text-muted-foreground">
+                      {selectedCount === 0
+                        ? "Pick a page to continue"
+                        : `${selectedCount} page${selectedCount === 1 ? "" : "s"} selected`}
+                    </div>
+                    <button
+                      onClick={convertFrame}
+                      disabled={!selectedFrame || converting}
+                      className="btn-primary"
+                    >
+                      {converting ? "Building…" : "Build this page →"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
