@@ -81,10 +81,14 @@ function EditorPage() {
     (async () => {
       const { data } = await supabase
         .from("projects")
-        .select("name,html_content,css_content,grapesjson,seo")
+        .select("name,html_content,css_content,grapesjson,seo,figma_design_reference")
         .eq("id", id).single();
       if (!mounted || !data || !ref.current) return;
       setName(data.name);
+      if (data.figma_design_reference) {
+        setFigmaRef(data.figma_design_reference);
+        setFigmaPanelOpen(true);
+      }
       if (data.seo && typeof data.seo === "object" && !Array.isArray(data.seo)) {
         setSeo((s: any) => ({ ...s, ...(data.seo as Record<string, any>) }));
       }
