@@ -25,22 +25,16 @@ async function refreshIfNeeded(userId: string, conn: {
   expires_at: string;
 }) {
   if (new Date(conn.expires_at).getTime() > Date.now() + 30_000) return conn.access_token;
-  const clientId = process.env.FIGMA_CLIENT_ID!;
-  const clientSecret = process.env.FIGMA_CLIENT_SECRET!;
   const r = await fetch("https://api.figma.com/v1/oauth/refresh", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: process.env.FIGMA_CLIENT_ID!,
+      client_secret: process.env.FIGMA_CLIENT_SECRET!,
       refresh_token: conn.refresh_token,
     }).toString(),
   });
-  if (!r.ok) {
-    const t = await r.text();
-    console.error("figma refresh failed", r.status, t);
-    throw new Error("refresh_failed");
-  }
+  if (!r.ok) throw new Error("refresh_failed");
   const data = (await r.json()) as { access_token: string; expires_in: number; refresh_token?: string };
   const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
   await supabaseAdmin.from("figma_connections").update({
@@ -60,9 +54,7 @@ export const Route = createFileRoute("/api/figma/import")({
           const token = auth.replace(/^Bearer\s+/i, "");
           if (!token) return json({ error: "Unauthorized" }, 401);
 
-          const supaUrl = process.env.SUPABASE_URL!;
-          const supaKey = process.env.SUPABASE_PUBLISHABLE_KEY!;
-          const supa = createClient(supaUrl, supaKey, {
+          const supa = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
             global: { headers: { Authorization: `Bearer ${token}` } },
             auth: { persistSession: false, autoRefreshToken: false },
           });
@@ -73,12 +65,11 @@ export const Route = createFileRoute("/api/figma/import")({
           const fileKey = body.url ? extractFileKey(body.url) : null;
           if (!fileKey) return json({ error: "That doesn't look like a valid Figma file URL." }, 400);
 
-          const { data: conn, error: cErr } = await supabaseAdmin
+          const { data: conn } = await supabaseAdmin
             .from("figma_connections")
             .select("access_token, refresh_token, expires_at")
             .eq("user_id", u.user.id)
             .maybeSingle();
-          if (cErr) return json({ error: "Failed to load Figma connection." }, 500);
           if (!conn) return json({ error: "Connect Figma first." }, 400);
 
           let accessToken: string;
@@ -88,22 +79,47 @@ export const Route = createFileRoute("/api/figma/import")({
             return json({ error: "Your Figma session expired. Please reconnect Figma." }, 401);
           }
 
-          const fileRes = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=1`, {
+          // depth=2 to get pages + their immediate frame children
+          const fileRes = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=2`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           if (fileRes.status === 404) return json({ error: "Figma file not found." }, 404);
           if (fileRes.status === 403) return json({ error: "You don't have access to this Figma file." }, 403);
           if (fileRes.status === 401) return json({ error: "Your Figma session expired. Please reconnect Figma." }, 401);
-          if (!fileRes.ok) {
-            const t = await fileRes.text();
-            console.error("figma files api", fileRes.status, t);
-            return json({ error: "Couldn't reach Figma. Please try again." }, 502);
-          }
+          if (!fileRes.ok) return json({ error: "Couldn't reach Figma. Please try again." }, 502);
+
           const file = (await fileRes.json()) as any;
-          const pages = (file?.document?.children || []).map((p: any) => ({
-            name: p.name,
-            nodeId: p.id,
-          }));
+          const pages = (file?.document?.children || []).map((p: any) => {
+            const frames = (p.children || [])
+              .filter((c: any) => c.type === "FRAME")
+              .map((f: any) => ({
+                name: f.name,
+                nodeId: f.id,
+                width: Math.round(f.absoluteBoundingBox?.width || 0),
+                height: Math.round(f.absoluteBoundingBox?.height || 0),
+              }));
+            return { name: p.name, nodeId: p.id, frames };
+          });
+
+          // Fetch thumbnails for all frames in one call
+          const allFrameIds = pages.flatMap((p: any) => p.frames.map((f: any) => f.nodeId));
+          let thumbs: Record<string, string> = {};
+          if (allFrameIds.length > 0 && allFrameIds.length <= 100) {
+            const tRes = await fetch(
+              `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(allFrameIds.join(","))}&format=png&scale=0.5`,
+              { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+            if (tRes.ok) {
+              const td = (await tRes.json()) as any;
+              thumbs = td.images || {};
+            }
+          }
+          for (const p of pages) {
+            for (const f of p.frames) {
+              f.thumbnail = thumbs[f.nodeId] || null;
+            }
+          }
+
           return json({ fileKey, name: file?.name, pages });
         } catch (e: any) {
           console.error("figma import error", e);
