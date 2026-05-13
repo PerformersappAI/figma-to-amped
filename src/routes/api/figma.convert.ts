@@ -58,8 +58,10 @@ export const Route = createFileRoute("/api/figma/convert")({
             },
           });
         } catch (e: any) {
-          console.error("figma convert error", e);
-          return json({ error: e?.message || "Server error" }, 500);
+          const phase = e instanceof ConvertPhaseError ? e.phase : "unknown";
+          const message = e?.message || "Server error";
+          console.error("figma convert error", phase, message, e?.stack);
+          return json({ error: message, phase }, 500);
         }
       },
     },
