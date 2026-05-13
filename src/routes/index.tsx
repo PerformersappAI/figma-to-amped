@@ -55,7 +55,7 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border px-6 py-6 text-center text-xs text-muted-foreground font-display uppercase tracking-widest">
-        FigmaShip · A Premium Tool by Amped
+        Amped — FigmaShip · A Premium Tool by Amped
       </footer>
     </div>
   );
