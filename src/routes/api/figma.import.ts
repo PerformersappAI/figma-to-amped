@@ -101,22 +101,67 @@ export const Route = createFileRoute("/api/figma/import")({
             return { name: p.name, nodeId: p.id, frames };
           });
 
-          // Fetch thumbnails for all frames in one call
-          const allFrameIds = pages.flatMap((p: any) => p.frames.map((f: any) => f.nodeId));
-          let thumbs: Record<string, string> = {};
-          if (allFrameIds.length > 0 && allFrameIds.length <= 100) {
-            const tRes = await fetch(
-              `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(allFrameIds.join(","))}&format=png&scale=0.5`,
-              { headers: { Authorization: `Bearer ${accessToken}` } }
-            );
-            if (tRes.ok) {
+          // Resolve thumbnails: check cache in Storage first, then fetch from Figma + cache
+          const allFrameIds: string[] = pages.flatMap((p: any) => p.frames.map((f: any) => f.nodeId));
+          const bucket = "project-thumbnails";
+          const publicUrlFor = (nodeId: string) => {
+            const path = `figma/${fileKey}/${nodeId.replace(/:/g, "_")}.png`;
+            const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(path);
+            return { path, url: data.publicUrl };
+          };
+
+          const cached: Record<string, string> = {};
+          const missing: string[] = [];
+          await Promise.all(
+            allFrameIds.map(async (id) => {
+              const { path, url } = publicUrlFor(id);
+              const head = await fetch(url, { method: "HEAD" });
+              if (head.ok) cached[id] = url;
+              else missing.push(id);
+            })
+          );
+
+          if (missing.length > 0 && missing.length <= 100) {
+            // Poll Figma /v1/images until renders complete (Figma can return null while pending)
+            let figmaUrls: Record<string, string | null> = {};
+            const deadline = Date.now() + 30_000;
+            while (Date.now() < deadline) {
+              const tRes = await fetch(
+                `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(missing.join(","))}&format=png&scale=0.5`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              );
+              if (!tRes.ok) break;
               const td = (await tRes.json()) as any;
-              thumbs = td.images || {};
+              figmaUrls = td.images || {};
+              const stillPending = missing.some((id) => figmaUrls[id] == null);
+              if (!stillPending) break;
+              await new Promise((r) => setTimeout(r, 1500));
             }
+
+            // Download + upload to Storage; never expose Figma signed URLs to the browser
+            await Promise.all(
+              missing.map(async (id) => {
+                const src = figmaUrls[id];
+                if (!src) return;
+                try {
+                  const imgRes = await fetch(src);
+                  if (!imgRes.ok) return;
+                  const buf = new Uint8Array(await imgRes.arrayBuffer());
+                  const { path, url } = publicUrlFor(id);
+                  const { error: upErr } = await supabaseAdmin.storage
+                    .from(bucket)
+                    .upload(path, buf, { contentType: "image/png", upsert: true });
+                  if (!upErr) cached[id] = url;
+                } catch {
+                  /* ignore single-thumb failures */
+                }
+              })
+            );
           }
+
           for (const p of pages) {
             for (const f of p.frames) {
-              f.thumbnail = thumbs[f.nodeId] || null;
+              f.thumbnail = cached[f.nodeId] || null;
             }
           }
 
