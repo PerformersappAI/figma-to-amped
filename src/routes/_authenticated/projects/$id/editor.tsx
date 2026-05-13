@@ -167,6 +167,19 @@ function EditorPage() {
           <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
           <DeviceBtn active={device === "Desktop"} onClick={() => setDevice("Desktop")} icon={<Monitor size={14} />} label="Desktop" />
           <DeviceBtn active={device === "Mobile"} onClick={() => setDevice("Mobile")} icon={<Smartphone size={14} />} label="Mobile" />
+          {figmaRef && (
+            <>
+              <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
+              <button
+                onClick={() => setFigmaPanelOpen(o => !o)}
+                title="Show original Figma design"
+                className="p-2"
+                style={{ color: figmaPanelOpen ? "#c8f000" : "#fff" }}
+              >
+                <Figma size={16} />
+              </button>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={save} disabled={saving}
