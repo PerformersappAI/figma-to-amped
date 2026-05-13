@@ -40,7 +40,7 @@ function sanitizeSvg(svg: string): string {
 
 async function downloadAndStore(url: string, path: string, contentType = "image/png"): Promise<string | null> {
   try {
-    const r = await fetch(url);
+    const r = await tfetch(url, { timeoutMs: 30_000 });
     if (!r.ok) return null;
     const buf = new Uint8Array(await r.arrayBuffer());
     const { error } = await supabaseAdmin.storage.from("project-assets").upload(path, buf, { contentType, upsert: true });
