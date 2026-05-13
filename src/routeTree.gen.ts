@@ -21,10 +21,14 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as PreviewProjectIdPageSlugRouteImport } from './routes/preview.$projectId.$pageSlug'
 import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
+import { Route as ApiFigmaRenderRouteImport } from './routes/api/figma.render'
+import { Route as ApiFigmaProcessAssetsRouteImport } from './routes/api/figma.process-assets'
 import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
+import { Route as ApiFigmaFetchNodeRouteImport } from './routes/api/figma.fetch-node'
 import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disconnect'
 import { Route as ApiFigmaConvertBatchRouteImport } from './routes/api/figma.convert-batch'
 import { Route as ApiFigmaConvertRouteImport } from './routes/api/figma.convert'
+import { Route as ApiFigmaCleanupRouteImport } from './routes/api/figma.cleanup'
 import { Route as AuthenticatedProjectsIdPreviewRouteImport } from './routes/_authenticated/projects/$id/preview'
 import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_authenticated/projects/$id/editor'
 
@@ -88,9 +92,24 @@ const AuthFigmaCallbackRoute = AuthFigmaCallbackRouteImport.update({
   path: '/auth/figma/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFigmaRenderRoute = ApiFigmaRenderRouteImport.update({
+  id: '/api/figma/render',
+  path: '/api/figma/render',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFigmaProcessAssetsRoute = ApiFigmaProcessAssetsRouteImport.update({
+  id: '/api/figma/process-assets',
+  path: '/api/figma/process-assets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFigmaImportRoute = ApiFigmaImportRouteImport.update({
   id: '/api/figma/import',
   path: '/api/figma/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFigmaFetchNodeRoute = ApiFigmaFetchNodeRouteImport.update({
+  id: '/api/figma/fetch-node',
+  path: '/api/figma/fetch-node',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFigmaDisconnectRoute = ApiFigmaDisconnectRouteImport.update({
@@ -106,6 +125,11 @@ const ApiFigmaConvertBatchRoute = ApiFigmaConvertBatchRouteImport.update({
 const ApiFigmaConvertRoute = ApiFigmaConvertRouteImport.update({
   id: '/api/figma/convert',
   path: '/api/figma/convert',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFigmaCleanupRoute = ApiFigmaCleanupRouteImport.update({
+  id: '/api/figma/cleanup',
+  path: '/api/figma/cleanup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedProjectsIdPreviewRoute =
@@ -130,10 +154,14 @@ export interface FileRoutesByFullPath {
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
+  '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/fetch-node': typeof ApiFigmaFetchNodeRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
+  '/api/figma/process-assets': typeof ApiFigmaProcessAssetsRoute
+  '/api/figma/render': typeof ApiFigmaRenderRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
@@ -149,10 +177,14 @@ export interface FileRoutesByTo {
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
+  '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/fetch-node': typeof ApiFigmaFetchNodeRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
+  '/api/figma/process-assets': typeof ApiFigmaProcessAssetsRoute
+  '/api/figma/render': typeof ApiFigmaRenderRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
@@ -170,10 +202,14 @@ export interface FileRoutesById {
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
+  '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/fetch-node': typeof ApiFigmaFetchNodeRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
+  '/api/figma/process-assets': typeof ApiFigmaProcessAssetsRoute
+  '/api/figma/render': typeof ApiFigmaRenderRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
@@ -191,10 +227,14 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/cleanup'
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
+    | '/api/figma/fetch-node'
     | '/api/figma/import'
+    | '/api/figma/process-assets'
+    | '/api/figma/render'
     | '/auth/figma/callback'
     | '/auth/figma/start'
     | '/preview/$projectId/$pageSlug'
@@ -210,10 +250,14 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/cleanup'
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
+    | '/api/figma/fetch-node'
     | '/api/figma/import'
+    | '/api/figma/process-assets'
+    | '/api/figma/render'
     | '/auth/figma/callback'
     | '/auth/figma/start'
     | '/preview/$projectId/$pageSlug'
@@ -230,10 +274,14 @@ export interface FileRouteTypes {
     | '/_authenticated/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/cleanup'
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
+    | '/api/figma/fetch-node'
     | '/api/figma/import'
+    | '/api/figma/process-assets'
+    | '/api/figma/render'
     | '/auth/figma/callback'
     | '/auth/figma/start'
     | '/preview/$projectId/$pageSlug'
@@ -248,10 +296,14 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
   PreviewProjectIdRoute: typeof PreviewProjectIdRouteWithChildren
+  ApiFigmaCleanupRoute: typeof ApiFigmaCleanupRoute
   ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
   ApiFigmaConvertBatchRoute: typeof ApiFigmaConvertBatchRoute
   ApiFigmaDisconnectRoute: typeof ApiFigmaDisconnectRoute
+  ApiFigmaFetchNodeRoute: typeof ApiFigmaFetchNodeRoute
   ApiFigmaImportRoute: typeof ApiFigmaImportRoute
+  ApiFigmaProcessAssetsRoute: typeof ApiFigmaProcessAssetsRoute
+  ApiFigmaRenderRoute: typeof ApiFigmaRenderRoute
   AuthFigmaCallbackRoute: typeof AuthFigmaCallbackRoute
   AuthFigmaStartRoute: typeof AuthFigmaStartRoute
 }
@@ -342,11 +394,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthFigmaCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/figma/render': {
+      id: '/api/figma/render'
+      path: '/api/figma/render'
+      fullPath: '/api/figma/render'
+      preLoaderRoute: typeof ApiFigmaRenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/figma/process-assets': {
+      id: '/api/figma/process-assets'
+      path: '/api/figma/process-assets'
+      fullPath: '/api/figma/process-assets'
+      preLoaderRoute: typeof ApiFigmaProcessAssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/figma/import': {
       id: '/api/figma/import'
       path: '/api/figma/import'
       fullPath: '/api/figma/import'
       preLoaderRoute: typeof ApiFigmaImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/figma/fetch-node': {
+      id: '/api/figma/fetch-node'
+      path: '/api/figma/fetch-node'
+      fullPath: '/api/figma/fetch-node'
+      preLoaderRoute: typeof ApiFigmaFetchNodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/figma/disconnect': {
@@ -368,6 +441,13 @@ declare module '@tanstack/react-router' {
       path: '/api/figma/convert'
       fullPath: '/api/figma/convert'
       preLoaderRoute: typeof ApiFigmaConvertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/figma/cleanup': {
+      id: '/api/figma/cleanup'
+      path: '/api/figma/cleanup'
+      fullPath: '/api/figma/cleanup'
+      preLoaderRoute: typeof ApiFigmaCleanupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/projects/$id/preview': {
@@ -425,10 +505,14 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
   PreviewProjectIdRoute: PreviewProjectIdRouteWithChildren,
+  ApiFigmaCleanupRoute: ApiFigmaCleanupRoute,
   ApiFigmaConvertRoute: ApiFigmaConvertRoute,
   ApiFigmaConvertBatchRoute: ApiFigmaConvertBatchRoute,
   ApiFigmaDisconnectRoute: ApiFigmaDisconnectRoute,
+  ApiFigmaFetchNodeRoute: ApiFigmaFetchNodeRoute,
   ApiFigmaImportRoute: ApiFigmaImportRoute,
+  ApiFigmaProcessAssetsRoute: ApiFigmaProcessAssetsRoute,
+  ApiFigmaRenderRoute: ApiFigmaRenderRoute,
   AuthFigmaCallbackRoute: AuthFigmaCallbackRoute,
   AuthFigmaStartRoute: AuthFigmaStartRoute,
 }

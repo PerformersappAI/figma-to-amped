@@ -84,7 +84,15 @@ function UploadPage() {
   const [filter, setFilter] = useState<DeviceFilter>("all");
 
   // Batch build state
-  type PageRow = { id: string; name: string; status: string; figma_node_id: string; thumbnail?: string | null; error_message?: string | null };
+  type PageRow = {
+    id: string;
+    name: string;
+    status: string;
+    figma_node_id: string;
+    thumbnail?: string | null;
+    error_message?: string | null;
+    last_completed_step?: string | null;
+  };
   const [batch, setBatch] = useState<{ projectId: string; rows: PageRow[]; thumbs: Record<string, string | null> } | null>(null);
   const [starting, setStarting] = useState(false);
 
@@ -121,7 +129,14 @@ function UploadPage() {
             const next = (payload.new || payload.old) as any;
             if (!next?.id) return prev;
             const idx = prev.rows.findIndex(r => r.id === next.id);
-            const updated = { id: next.id, name: next.name, status: next.status, figma_node_id: next.figma_node_id, error_message: next.error_message };
+            const updated = {
+              id: next.id,
+              name: next.name,
+              status: next.status,
+              figma_node_id: next.figma_node_id,
+              error_message: next.error_message,
+              last_completed_step: next.figma_metadata?.last_completed_step ?? null,
+            };
             const rows = idx >= 0
               ? prev.rows.map((r, i) => i === idx ? { ...r, ...updated } : r)
               : [...prev.rows, updated];
@@ -203,9 +218,72 @@ function UploadPage() {
       .slice(0, 60) || "page";
   }
 
-  // Client-driven batch: pre-create project + all page rows, then convert each page in
-  // parallel via the single-page endpoint. This avoids a single long-running Worker
-  // request that can time out mid-loop and leave pages un-inserted.
+  async function postStep(path: string, payload: Record<string, unknown>) {
+    if (!session) throw new Error("You need to sign in again.");
+    let response: Response;
+    try {
+      response = await fetch(path, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (netErr: any) {
+      throw new Error(`Network error (worker may have timed out): ${netErr?.message || "Failed to fetch"}`);
+    }
+
+    const raw = await response.text();
+    let data: any = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch { /* ignore */ }
+    if (!response.ok) {
+      const phase = data?.phase ? `[${data.phase}] ` : "";
+      throw new Error(`${phase}${data?.error || raw?.slice(0, 200) || `HTTP ${response.status}`}`);
+    }
+    return data;
+  }
+
+  function stepIndexFromRow(row?: { status?: string; last_completed_step?: string | null }) {
+    const last = row?.last_completed_step;
+    if (row?.status === "ready" || last === "ready") return 4;
+    if (row?.status === "rendered" || last === "rendered") return 3;
+    if (row?.status === "assets-ready" || last === "assets-ready") return 2;
+    if (row?.status === "fetched" || last === "fetched") return 1;
+    return 0;
+  }
+
+  function updateBatchRow(pageId: string, patch: Partial<PageRow>) {
+    setBatch(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rows: prev.rows.map(row => row.id === pageId ? { ...row, ...patch } : row),
+      };
+    });
+  }
+
+  async function runPagePipeline(pageId: string, nodeId: string, projectId: string, startStep = 0) {
+    if (!figmaResult?.fileKey) throw new Error("Missing Figma file key");
+    if (startStep < 1) {
+      updateBatchRow(pageId, { status: "fetching", error_message: null });
+      await postStep("/api/figma/fetch-node", { fileKey: figmaResult.fileKey, pageId, nodeId, projectId });
+      updateBatchRow(pageId, { status: "fetched", last_completed_step: "fetched" });
+    }
+    if (startStep < 2) {
+      updateBatchRow(pageId, { status: "processing-assets", error_message: null });
+      await postStep("/api/figma/process-assets", { fileKey: figmaResult.fileKey, pageId, nodeId, projectId });
+      updateBatchRow(pageId, { status: "assets-ready", last_completed_step: "assets-ready" });
+    }
+    if (startStep < 3) {
+      updateBatchRow(pageId, { status: "rendering", error_message: null });
+      await postStep("/api/figma/render", { pageId, projectId });
+      updateBatchRow(pageId, { status: "rendered", last_completed_step: "rendered" });
+    }
+    if (startStep < 4) {
+      updateBatchRow(pageId, { status: "cleaning", error_message: null });
+      await postStep("/api/figma/cleanup", { pageId, projectId, fileKey: figmaResult.fileKey });
+      updateBatchRow(pageId, { status: "ready", last_completed_step: "ready" });
+    }
+  }
+
   async function buildBatchV2() {
     if (!session || !user || !figmaResult?.fileKey || selectedIds.size === 0) return;
     setStarting(true);
@@ -248,53 +326,21 @@ function UploadPage() {
         .from("pages").insert(pageInserts).select("id, name, status, figma_node_id");
       if (pagesErr || !insertedPages) throw pagesErr || new Error("Couldn't create pages");
 
-      // 3. Open the overlay with the full known list so total is correct from the start.
       const initialRows: PageRow[] = insertedPages.map(p => ({
         id: p.id, name: p.name, status: p.status,
-        figma_node_id: p.figma_node_id as string, error_message: null,
+        figma_node_id: p.figma_node_id as string, error_message: null, last_completed_step: null,
       }));
       setBatch({ projectId: project.id, rows: initialRows, thumbs });
 
-      // 4. Convert each page in parallel (cap concurrency to 2 to be polite to Figma + Claude)
       const queue = [...insertedPages];
       const CONCURRENCY = 2;
       const runOne = async (page: { id: string; figma_node_id: string | null }) => {
         const nodeId = page.figma_node_id!;
-        await supabase.from("pages").update({ status: "building" }).eq("id", page.id);
         try {
-          let r: Response;
-          try {
-            r = await fetch("/api/figma/convert", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-              body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: project.id }),
-            });
-          } catch (netErr: any) {
-            // Worker crashed / timed out before producing a response
-            throw new Error(`Network error (worker may have timed out): ${netErr?.message || "Failed to fetch"}`);
-          }
-          const raw = await r.text();
-          let data: any = null;
-          try { data = raw ? JSON.parse(raw) : null; } catch { /* not JSON */ }
-          if (!r.ok) {
-            const phase = data?.phase ? `[${data.phase}] ` : "";
-            const detail = data?.error || raw?.slice(0, 200) || `HTTP ${r.status}`;
-            throw new Error(`${phase}${detail}`);
-          }
-          await supabase.from("pages").update({
-            status: "ready",
-            html: data.html,
-            css: data.css,
-            figma_design_reference_url: data.designReference,
-            figma_metadata: data.metadata,
-            error_message: null,
-          }).eq("id", page.id);
+          await runPagePipeline(page.id, nodeId, project.id, 0);
         } catch (e: any) {
           console.error("convert page failed", nodeId, e);
-          await supabase.from("pages").update({
-            status: "failed",
-            error_message: e?.message || "Conversion failed",
-          }).eq("id", page.id);
+          updateBatchRow(page.id, { status: "failed", error_message: e?.message || "Conversion failed" });
         }
       };
       const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
@@ -303,7 +349,9 @@ function UploadPage() {
           if (next) await runOne(next);
         }
       });
-      Promise.all(workers).catch(e => console.error("batch workers", e));
+      Promise.all(workers)
+        .catch(e => console.error("batch workers", e))
+        .finally(() => setStarting(false));
     } catch (e: any) {
       toast.error(e.message || "Couldn't start build");
       setStarting(false);
@@ -314,34 +362,12 @@ function UploadPage() {
 
   async function retryPage(pageId: string, nodeId: string) {
     if (!batch || !session || !figmaResult?.fileKey) return;
-    await supabase.from("pages").update({ status: "building", error_message: null }).eq("id", pageId);
+    updateBatchRow(pageId, { status: "pending", error_message: null });
     try {
-      let r: Response;
-      try {
-        r = await fetch("/api/figma/convert", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-          body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: batch.projectId }),
-        });
-      } catch (netErr: any) {
-        throw new Error(`Network error (worker may have timed out): ${netErr?.message || "Failed to fetch"}`);
-      }
-      const raw = await r.text();
-      let data: any = null;
-      try { data = raw ? JSON.parse(raw) : null; } catch { /* */ }
-      if (!r.ok) {
-        const phase = data?.phase ? `[${data.phase}] ` : "";
-        throw new Error(`${phase}${data?.error || raw?.slice(0, 200) || `HTTP ${r.status}`}`);
-      }
-      await supabase.from("pages").update({
-        status: "ready",
-        html: data.html,
-        css: data.css,
-        figma_design_reference_url: data.designReference,
-        figma_metadata: data.metadata,
-      }).eq("id", pageId);
+      const row = batch.rows.find(r => r.id === pageId);
+      await runPagePipeline(pageId, nodeId, batch.projectId, stepIndexFromRow(row));
     } catch (e: any) {
-      await supabase.from("pages").update({ status: "failed", error_message: e?.message || "Retry failed" }).eq("id", pageId);
+      updateBatchRow(pageId, { status: "failed", error_message: e?.message || "Retry failed" });
       toast.error(e?.message || "Retry failed");
     }
   }

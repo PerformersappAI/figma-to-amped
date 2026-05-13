@@ -144,12 +144,14 @@ export type Database = {
       }
       pages: {
         Row: {
+          assets: Json
           created_at: string
           css: string | null
           error_message: string | null
           figma_design_reference_url: string | null
           figma_metadata: Json | null
           figma_node_id: string | null
+          figma_node_tree: Json | null
           grapesjson: Json | null
           html: string | null
           id: string
@@ -161,14 +163,17 @@ export type Database = {
           status: string
           thumbnail_url: string | null
           updated_at: string
+          vectors: Json
         }
         Insert: {
+          assets?: Json
           created_at?: string
           css?: string | null
           error_message?: string | null
           figma_design_reference_url?: string | null
           figma_metadata?: Json | null
           figma_node_id?: string | null
+          figma_node_tree?: Json | null
           grapesjson?: Json | null
           html?: string | null
           id?: string
@@ -180,14 +185,17 @@ export type Database = {
           status?: string
           thumbnail_url?: string | null
           updated_at?: string
+          vectors?: Json
         }
         Update: {
+          assets?: Json
           created_at?: string
           css?: string | null
           error_message?: string | null
           figma_design_reference_url?: string | null
           figma_metadata?: Json | null
           figma_node_id?: string | null
+          figma_node_tree?: Json | null
           grapesjson?: Json | null
           html?: string | null
           id?: string
@@ -199,6 +207,7 @@ export type Database = {
           status?: string
           thumbnail_url?: string | null
           updated_at?: string
+          vectors?: Json
         }
         Relationships: [
           {
