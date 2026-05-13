@@ -35,7 +35,12 @@ function UploadPage() {
   const [figmaUrl, setFigmaUrl] = useState("");
   const [figmaImporting, setFigmaImporting] = useState(false);
   const [figmaError, setFigmaError] = useState<string | null>(null);
-  const [figmaResult, setFigmaResult] = useState<{ name?: string; pages: { name: string; nodeId: string }[] } | null>(null);
+  type FigmaFrame = { name: string; nodeId: string; width: number; height: number; thumbnail?: string | null };
+  type FigmaPage = { name: string; nodeId: string; frames: FigmaFrame[] };
+  const [figmaResult, setFigmaResult] = useState<{ fileKey?: string; name?: string; pages: FigmaPage[] } | null>(null);
+  const [selectedFrame, setSelectedFrame] = useState<{ pageId: string; nodeId: string } | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertStatus, setConvertStatus] = useState("");
 
   // Load existing Figma connection
   useEffect(() => {
