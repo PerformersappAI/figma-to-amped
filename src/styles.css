@@ -171,3 +171,15 @@
 .gjs-sm-sector .gjs-sm-title, .gjs-sm-property .gjs-sm-label { color: #fff !important; font-family: var(--font-display) !important; text-transform: uppercase; letter-spacing: 0.05em; }
 .gjs-field { background: #0a0a0a !important; color: #fff !important; border: 1px solid #2a2a2a !important; border-radius: 3px !important; }
 .gjs-cv-canvas { background: #0a0a0a !important; }
+
+/* Skeleton shimmer for loading states */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #1a1a1a 0%, #242424 50%, #1a1a1a 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
