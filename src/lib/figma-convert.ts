@@ -7,7 +7,38 @@ export type ConvertCtx = {
   imageMap: Record<string, string>; // imageRef -> stored URL
   cssRules: Map<string, Style>;     // className -> style
   classNames: Set<string>;
+  vectorSvgMap: Record<string, string>; // nodeId -> sanitized SVG markup
 };
+
+const VECTOR_PRIM_TYPES = new Set([
+  "VECTOR",
+  "BOOLEAN_OPERATION",
+  "STAR",
+  "LINE",
+  "REGULAR_POLYGON",
+]);
+
+function isVectorOnlyGroup(node: any): boolean {
+  if (!node || node.type !== "GROUP" || !node.children?.length) return false;
+  return node.children.every(
+    (c: any) => VECTOR_PRIM_TYPES.has(c.type) || isVectorOnlyGroup(c)
+  );
+}
+
+function isVectorElement(node: any): boolean {
+  return VECTOR_PRIM_TYPES.has(node?.type) || isVectorOnlyGroup(node);
+}
+
+/** Walk the tree and collect node IDs that should be exported as SVG. */
+export function collectVectorNodeIds(node: any, out: string[] = []): string[] {
+  if (!node || node.visible === false) return out;
+  if (isVectorElement(node)) {
+    out.push(node.id);
+    return out; // do not recurse — emit one SVG per element/group
+  }
+  for (const c of node.children || []) collectVectorNodeIds(c, out);
+  return out;
+}
 
 function kebab(name: string, fallback = "node"): string {
   const cleaned = (name || fallback)
