@@ -458,50 +458,64 @@ function UploadPage() {
         )}
       </div>
 
-      {/* ZIP fallback */}
-      <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-3">
-        Or upload a site export ZIP
+      {/* Advanced: ZIP fallback (collapsed by default) */}
+      <div className="mt-12 text-center">
+        <button
+          type="button"
+          onClick={() => setShowZip(s => !s)}
+          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+        >
+          {showZip ? "Hide advanced import options" : "Other ways to import"}
+        </button>
       </div>
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={async e => {
-          e.preventDefault(); setDragOver(false);
-          const f = e.dataTransfer.files[0];
-          if (f) handleFile(f);
-        }}
-        className="relative rounded-md transition-colors"
-        style={{
-          border: `2px dashed var(--accent)`,
-          background: dragOver ? "rgba(200,240,0,0.05)" : "var(--surface)",
-          padding: "60px 24px",
-        }}
-      >
-        <div className="text-center">
-          <UploadCloud size={48} style={{ color: "var(--accent)", margin: "0 auto" }} />
-          <h3 className="mt-4 text-2xl">Drop your ZIP here</h3>
-          <p className="text-sm text-muted-foreground mt-2">or click below to browse</p>
-          <label className="btn-primary mt-6 inline-flex cursor-pointer">
-            Choose file
-            <input
-              type="file" accept=".zip" className="hidden"
-              onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
-              disabled={busy}
-            />
-          </label>
-        </div>
 
-        {busy && (
-          <div className="mt-8">
-            <div className="flex justify-between text-xs font-display uppercase tracking-widest mb-2">
-              <span>{label}</span><span style={{ color: "var(--accent)" }}>{progress}%</span>
-            </div>
-            <div className="h-1.5 bg-[var(--surface-2)] overflow-hidden rounded">
-              <div className="h-full transition-all" style={{ width: `${progress}%`, background: "var(--accent)" }} />
-            </div>
+      {showZip && (
+        <div className="mt-6">
+          <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-3">
+            Upload a site export ZIP
           </div>
-        )}
-      </div>
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={async e => {
+              e.preventDefault(); setDragOver(false);
+              const f = e.dataTransfer.files[0];
+              if (f) handleFile(f);
+            }}
+            className="relative rounded-md transition-colors"
+            style={{
+              border: `2px dashed var(--accent)`,
+              background: dragOver ? "rgba(200,240,0,0.05)" : "var(--surface)",
+              padding: "60px 24px",
+            }}
+          >
+            <div className="text-center">
+              <UploadCloud size={48} style={{ color: "var(--accent)", margin: "0 auto" }} />
+              <h3 className="mt-4 text-2xl">Drop your ZIP here</h3>
+              <p className="text-sm text-muted-foreground mt-2">or click below to browse</p>
+              <label className="btn-primary mt-6 inline-flex cursor-pointer">
+                Choose file
+                <input
+                  type="file" accept=".zip" className="hidden"
+                  onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
+                  disabled={busy}
+                />
+              </label>
+            </div>
+
+            {busy && (
+              <div className="mt-8">
+                <div className="flex justify-between text-xs font-display uppercase tracking-widest mb-2">
+                  <span>{label}</span><span style={{ color: "var(--accent)" }}>{progress}%</span>
+                </div>
+                <div className="h-1.5 bg-[var(--surface-2)] overflow-hidden rounded">
+                  <div className="h-full transition-all" style={{ width: `${progress}%`, background: "var(--accent)" }} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {converting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,10,10,0.92)" }}>
