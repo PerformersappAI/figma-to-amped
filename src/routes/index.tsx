@@ -41,7 +41,7 @@ function Landing() {
 
         <section id="how" className="mx-auto max-w-6xl pb-24 grid md:grid-cols-3 gap-4">
           {[
-            { icon: Upload, title: "1. Drop your ZIP", body: "Export from the Builder.io Visual Copilot Figma plugin and drop the ZIP into FigmaShip." },
+            { icon: Upload, title: "1. Drop your ZIP", body: "Export your site design as a ZIP and drop it into FigmaShip — or import directly from Figma." },
             { icon: Wand2, title: "2. Edit visually", body: "Drag, drop, restyle. Ask the AI assistant for help with fonts, spacing, and brand polish." },
             { icon: Rocket, title: "3. Publish & share", body: "Download clean code, hand it to a dev, or share a live preview link with a single click." },
           ].map(({ icon: Icon, title, body }) => (

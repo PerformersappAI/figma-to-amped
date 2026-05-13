@@ -185,7 +185,7 @@ function UploadPage() {
   const handleFile = useCallback(async (file: File) => {
     if (!user) return;
     if (!file.name.toLowerCase().endsWith(".zip")) {
-      return toast.error("Please drop a .zip file from Builder.io Visual Copilot.");
+      return toast.error("Please drop a .zip file containing your site export.");
     }
     setBusy(true); setProgress(2); setLabel("Creating project…");
     try {
@@ -223,7 +223,7 @@ function UploadPage() {
       <div className="text-xs font-display uppercase tracking-widest text-muted-foreground">Step 1 of 5</div>
       <h1 className="text-4xl mt-1 mb-2">Import your design</h1>
       <p className="text-muted-foreground mb-8">
-        Connect Figma and paste a file URL, or drop a Builder.io ZIP.
+        Connect Figma and paste a file URL, or drop a site export ZIP.
       </p>
 
       {/* Figma section */}
@@ -354,7 +354,7 @@ function UploadPage() {
 
       {/* ZIP fallback */}
       <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-3">
-        Or upload a Builder.io ZIP
+        Or upload a site export ZIP
       </div>
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
