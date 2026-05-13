@@ -74,7 +74,8 @@ function EditorPage() {
     schemaType: "Organization", bizName: "", bizUrl: "", bizDescription: "", phone: "", address: "",
     socials: "", faqs: [{ q: "", a: "" }],
   });
-
+  const [figmaRef, setFigmaRef] = useState<string | null>(null);
+  const [figmaPanelOpen, setFigmaPanelOpen] = useState(false);
   useEffect(() => {
     let mounted = true;
     (async () => {
