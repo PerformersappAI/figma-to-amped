@@ -156,7 +156,7 @@ function UploadPage() {
       if (!r.ok) throw new Error(data?.error || "Import failed");
       setFigmaResult({ fileKey: data.fileKey, name: data.name, pages: data.pages || [] });
       const totalFrames = (data.pages || []).reduce((s: number, p: any) => s + (p.frames?.length || 0), 0);
-      toast.success(`Loaded ${totalFrames} frame${totalFrames === 1 ? "" : "s"} from "${data.name}"`);
+      toast.success(`Loaded ${totalFrames} page${totalFrames === 1 ? "" : "s"} from "${data.name}"`);
     } catch (e: any) {
       setFigmaError(e.message || "Import failed");
     } finally {
