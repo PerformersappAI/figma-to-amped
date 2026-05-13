@@ -20,6 +20,45 @@ export const Route = createFileRoute("/_authenticated/upload")({
   component: UploadPage,
 });
 
+const STEPS = ["Import", "Build", "Edit", "Review", "Publish"] as const;
+
+function deviceBadge(width: number) {
+  if (width < 600) return { label: "MOBILE", color: "var(--accent)" };
+  if (width < 1100) return { label: "TABLET", color: "#7ab8ff" };
+  return { label: "DESKTOP", color: "#ffffff" };
+}
+
+// Stable hue from a string for gradient fallback
+function hashHue(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+function ProgressBar({ current }: { current: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      {STEPS.map((s, i) => {
+        const active = i === current;
+        const done = i < current;
+        return (
+          <div key={s} className="flex items-center gap-2 flex-1">
+            <div className="flex-1">
+              <div
+                className="text-[10px] font-display uppercase tracking-widest mb-1"
+                style={{ color: active ? "var(--accent)" : done ? "var(--foreground)" : "var(--muted-foreground)" }}
+              >
+                {i + 1}. {s}
+              </div>
+              <div className="h-[3px] rounded" style={{ background: active || done ? "var(--accent)" : "var(--surface-2)" }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function UploadPage() {
   const { user, session } = useAuth();
   const nav = useNavigate();
