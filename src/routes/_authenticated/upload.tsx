@@ -65,6 +65,7 @@ function UploadPage() {
   const search = useSearch({ from: "/_authenticated/upload" });
 
   const [dragOver, setDragOver] = useState(false);
+  const [showZip, setShowZip] = useState(false);
   const [progress, setProgress] = useState(0);
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
