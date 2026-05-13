@@ -354,7 +354,7 @@ function UploadPage() {
 
       {/* ZIP fallback */}
       <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-3">
-        Or upload a Builder.io ZIP
+        Or upload a site export ZIP
       </div>
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
