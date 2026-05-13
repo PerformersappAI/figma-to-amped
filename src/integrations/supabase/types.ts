@@ -46,6 +46,63 @@ export type Database = {
           },
         ]
       }
+      figma_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          figma_email: string | null
+          figma_handle: string | null
+          figma_img_url: string | null
+          figma_user_id: string | null
+          refresh_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          figma_email?: string | null
+          figma_handle?: string | null
+          figma_img_url?: string | null
+          figma_user_id?: string | null
+          refresh_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          figma_email?: string | null
+          figma_handle?: string | null
+          figma_img_url?: string | null
+          figma_user_id?: string | null
+          refresh_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      figma_oauth_states: {
+        Row: {
+          created_at: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
