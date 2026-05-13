@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_log: {
+        Row: {
+          cost_usd: number | null
+          created_at: string
+          id: string
+          input_tokens: number | null
+          metadata: Json | null
+          model: string | null
+          operation: string
+          output_tokens: number | null
+          project_id: string | null
+          user_id: string
+        }
+        Insert: {
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          metadata?: Json | null
+          model?: string | null
+          operation: string
+          output_tokens?: number | null
+          project_id?: string | null
+          user_id: string
+        }
+        Update: {
+          cost_usd?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          metadata?: Json | null
+          model?: string | null
+          operation?: string
+          output_tokens?: number | null
+          project_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_history: {
         Row: {
           created_at: string
@@ -134,6 +173,8 @@ export type Database = {
         Row: {
           created_at: string
           css_content: string | null
+          figma_design_reference: string | null
+          figma_metadata: Json | null
           grapesjson: Json | null
           html_content: string | null
           id: string
@@ -149,6 +190,8 @@ export type Database = {
         Insert: {
           created_at?: string
           css_content?: string | null
+          figma_design_reference?: string | null
+          figma_metadata?: Json | null
           grapesjson?: Json | null
           html_content?: string | null
           id?: string
@@ -164,6 +207,8 @@ export type Database = {
         Update: {
           created_at?: string
           css_content?: string | null
+          figma_design_reference?: string | null
+          figma_metadata?: Json | null
           grapesjson?: Json | null
           html_content?: string | null
           id?: string

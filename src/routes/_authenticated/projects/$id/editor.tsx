@@ -6,7 +6,7 @@ import {
   Layout, Type, Image as ImageIcon, MousePointerClick, Columns2, Columns3,
   Minus, Video, FormInput, MessageSquareQuote, Megaphone, FileText, Bot,
   HelpCircle, Search, Share2, UserPlus, Lightbulb, Star, BarChart3, Zap,
-  Layers, Globe, Code2,
+  Layers, Globe, Code2, Figma, X,
 } from "lucide-react";
 import grapesjs, { Editor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
@@ -74,16 +74,21 @@ function EditorPage() {
     schemaType: "Organization", bizName: "", bizUrl: "", bizDescription: "", phone: "", address: "",
     socials: "", faqs: [{ q: "", a: "" }],
   });
-
+  const [figmaRef, setFigmaRef] = useState<string | null>(null);
+  const [figmaPanelOpen, setFigmaPanelOpen] = useState(false);
   useEffect(() => {
     let mounted = true;
     (async () => {
       const { data } = await supabase
         .from("projects")
-        .select("name,html_content,css_content,grapesjson,seo")
+        .select("name,html_content,css_content,grapesjson,seo,figma_design_reference")
         .eq("id", id).single();
       if (!mounted || !data || !ref.current) return;
       setName(data.name);
+      if (data.figma_design_reference) {
+        setFigmaRef(data.figma_design_reference);
+        setFigmaPanelOpen(true);
+      }
       if (data.seo && typeof data.seo === "object" && !Array.isArray(data.seo)) {
         setSeo((s: any) => ({ ...s, ...(data.seo as Record<string, any>) }));
       }
@@ -162,6 +167,19 @@ function EditorPage() {
           <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
           <DeviceBtn active={device === "Desktop"} onClick={() => setDevice("Desktop")} icon={<Monitor size={14} />} label="Desktop" />
           <DeviceBtn active={device === "Mobile"} onClick={() => setDevice("Mobile")} icon={<Smartphone size={14} />} label="Mobile" />
+          {figmaRef && (
+            <>
+              <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
+              <button
+                onClick={() => setFigmaPanelOpen(o => !o)}
+                title="Show original Figma design"
+                className="p-2"
+                style={{ color: figmaPanelOpen ? "#c8f000" : "#fff" }}
+              >
+                <Figma size={16} />
+              </button>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={save} disabled={saving}
@@ -229,6 +247,21 @@ function EditorPage() {
           <div id="hidden-blocks" style={{ display: "none" }} />
         </div>
 
+        {/* FIGMA REFERENCE PANEL */}
+        {figmaRef && figmaPanelOpen && (
+          <aside className="flex flex-col" style={{ width: "30vw", minWidth: 280, background: "#0d0d0d", borderLeft: "1px solid #1e1e1e" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
+              <div className="font-display uppercase tracking-widest text-[10px] flex items-center gap-2" style={{ color: "#c8f000" }}>
+                <Figma size={11} /> Figma Reference
+              </div>
+              <button onClick={() => setFigmaPanelOpen(false)} className="text-[#555] hover:text-white"><X size={14} /></button>
+            </div>
+            <div className="flex-1 overflow-auto p-3">
+              <img src={figmaRef} alt="Original Figma design" style={{ width: "100%", height: "auto", display: "block" }} />
+            </div>
+          </aside>
+        )}
+
         {/* RIGHT PANEL */}
         <aside className="flex flex-col" style={{ width: 280, background: "#111", borderLeft: "1px solid #1e1e1e" }}>
           <div className="px-4 py-3 font-display uppercase tracking-widest text-[10px]" style={{ color: "#555", borderBottom: "1px solid #1e1e1e" }}>
@@ -243,7 +276,7 @@ function EditorPage() {
         </aside>
       </div>
 
-      <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} projectId={id} />
+      <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} projectId={id} figmaReference={figmaRef} />
       <PublishModal open={publishOpen} onClose={() => setPublishOpen(false)} projectId={id} onSave={save} />
     </div>
   );

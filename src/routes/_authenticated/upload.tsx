@@ -35,7 +35,12 @@ function UploadPage() {
   const [figmaUrl, setFigmaUrl] = useState("");
   const [figmaImporting, setFigmaImporting] = useState(false);
   const [figmaError, setFigmaError] = useState<string | null>(null);
-  const [figmaResult, setFigmaResult] = useState<{ name?: string; pages: { name: string; nodeId: string }[] } | null>(null);
+  type FigmaFrame = { name: string; nodeId: string; width: number; height: number; thumbnail?: string | null };
+  type FigmaPage = { name: string; nodeId: string; frames: FigmaFrame[] };
+  const [figmaResult, setFigmaResult] = useState<{ fileKey?: string; name?: string; pages: FigmaPage[] } | null>(null);
+  const [selectedFrame, setSelectedFrame] = useState<{ pageId: string; nodeId: string } | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertStatus, setConvertStatus] = useState("");
 
   // Load existing Figma connection
   useEffect(() => {
@@ -97,6 +102,7 @@ function UploadPage() {
     if (!session) return;
     setFigmaError(null);
     setFigmaResult(null);
+    setSelectedFrame(null);
     setFigmaImporting(true);
     try {
       const r = await fetch("/api/figma/import", {
@@ -109,12 +115,70 @@ function UploadPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.error || "Import failed");
-      setFigmaResult({ name: data.name, pages: data.pages || [] });
-      toast.success(`Loaded ${data.pages?.length || 0} pages from "${data.name}"`);
+      setFigmaResult({ fileKey: data.fileKey, name: data.name, pages: data.pages || [] });
+      const totalFrames = (data.pages || []).reduce((s: number, p: any) => s + (p.frames?.length || 0), 0);
+      toast.success(`Loaded ${totalFrames} frame${totalFrames === 1 ? "" : "s"} from "${data.name}"`);
     } catch (e: any) {
       setFigmaError(e.message || "Import failed");
     } finally {
       setFigmaImporting(false);
+    }
+  }
+
+  async function convertFrame() {
+    if (!session || !user || !selectedFrame || !figmaResult?.fileKey) return;
+    setConverting(true);
+    const messages = [
+      "Reading your design…",
+      "Pulling images…",
+      "Generating code…",
+      "Cleaning up with AI…",
+    ];
+    let i = 0;
+    setConvertStatus(messages[0]);
+    const ticker = setInterval(() => {
+      i = (i + 1) % messages.length;
+      setConvertStatus(messages[i]);
+    }, 2200);
+    try {
+      const r = await fetch("/api/figma/convert", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId: selectedFrame.nodeId }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Conversion failed");
+
+      // Create project
+      const frame = figmaResult.pages
+        .flatMap(p => p.frames)
+        .find(f => f.nodeId === selectedFrame.nodeId);
+      const projectName = `${figmaResult.name || "Figma"} — ${frame?.name || "Frame"}`;
+      const { data: project, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: projectName,
+          html_content: data.html,
+          css_content: data.css,
+          figma_design_reference: data.designReference || null,
+          figma_metadata: data.metadata || null,
+        })
+        .select("id")
+        .single();
+      if (error || !project) throw error || new Error("Failed to save project");
+
+      toast.success("Converted! Opening editor…");
+      nav({ to: "/projects/$id/editor", params: { id: project.id } });
+    } catch (e: any) {
+      toast.error(e.message || "Conversion failed");
+      setConverting(false);
+      setConvertStatus("");
+    } finally {
+      clearInterval(ticker);
     }
   }
 
@@ -222,21 +286,66 @@ function UploadPage() {
             )}
 
             {figmaResult && (
-              <div className="mt-4 p-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
-                <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-2">
-                  {figmaResult.name} — {figmaResult.pages.length} page{figmaResult.pages.length === 1 ? "" : "s"} found
+              <div className="mt-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                <div className="px-4 pt-4 pb-2 text-xs font-display uppercase tracking-widest text-muted-foreground">
+                  {figmaResult.name} — Pick one frame to convert
                 </div>
-                <ul className="text-sm space-y-1">
+                <div className="max-h-[420px] overflow-auto px-2 pb-2">
                   {figmaResult.pages.map(p => (
-                    <li key={p.nodeId} className="flex items-center justify-between gap-2">
-                      <span>{p.name}</span>
-                      <code className="text-xs text-muted-foreground">{p.nodeId}</code>
-                    </li>
+                    <div key={p.nodeId} className="mb-2">
+                      <div className="px-2 py-1 text-[10px] font-display uppercase tracking-widest" style={{ color: "var(--accent)" }}>
+                        {p.name}
+                      </div>
+                      {p.frames.length === 0 && (
+                        <div className="px-2 py-2 text-xs text-muted-foreground">No top-level frames on this page.</div>
+                      )}
+                      {p.frames.map(f => {
+                        const selected = selectedFrame?.nodeId === f.nodeId;
+                        return (
+                          <button
+                            key={f.nodeId}
+                            onClick={() => setSelectedFrame({ pageId: p.nodeId, nodeId: f.nodeId })}
+                            className="w-full text-left flex items-center gap-3 p-2 rounded transition-colors"
+                            style={{
+                              background: selected ? "rgba(200,240,0,0.08)" : "transparent",
+                              border: `1px solid ${selected ? "var(--accent)" : "transparent"}`,
+                            }}
+                          >
+                            <div
+                              className="flex items-center justify-center shrink-0"
+                              style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${selected ? "var(--accent)" : "#444"}` }}
+                            >
+                              {selected && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />}
+                            </div>
+                            <div className="shrink-0" style={{ width: 56, height: 40, background: "#1a1a1a", borderRadius: 3, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {f.thumbnail ? (
+                                <img src={f.thumbnail} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                              ) : (
+                                <span className="text-[9px] text-muted-foreground">no preview</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm truncate">{f.name}</div>
+                              <div className="text-[10px] text-muted-foreground">{f.width} × {f.height}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   ))}
-                </ul>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Page selection and conversion come in the next phase.
-                </p>
+                </div>
+                <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedFrame ? "1 frame selected" : "Select a frame to continue"}
+                  </div>
+                  <button
+                    onClick={convertFrame}
+                    disabled={!selectedFrame || converting}
+                    className="btn-primary"
+                  >
+                    {converting ? "Converting…" : "Convert →"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -287,6 +396,18 @@ function UploadPage() {
           </div>
         )}
       </div>
+
+      {converting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,10,10,0.92)" }}>
+          <div className="text-center px-6">
+            <div className="inline-block w-12 h-12 mb-6 rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "var(--accent) transparent var(--accent) transparent" }} />
+            <div className="font-display uppercase tracking-widest text-2xl" style={{ color: "var(--accent)" }}>
+              {convertStatus || "Working…"}
+            </div>
+            <div className="text-sm text-muted-foreground mt-3">This usually takes 10–30 seconds.</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
