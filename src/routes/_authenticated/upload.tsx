@@ -1,22 +1,122 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { UploadCloud, Link2, ArrowLeft } from "lucide-react";
+import { UploadCloud, ArrowLeft, Figma, LinkIcon, LogOut } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { importZip } from "@/lib/zip-import";
 
-export const Route = createFileRoute("/_authenticated/upload")({ component: UploadPage });
+type FigmaConn = {
+  figma_handle: string | null;
+  figma_email: string | null;
+  figma_img_url: string | null;
+} | null;
+
+export const Route = createFileRoute("/_authenticated/upload")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    figma: typeof s.figma === "string" ? s.figma : undefined,
+  }),
+  component: UploadPage,
+});
 
 function UploadPage() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const nav = useNavigate();
+  const search = useSearch({ from: "/_authenticated/upload" });
+
   const [dragOver, setDragOver] = useState(false);
   const [progress, setProgress] = useState(0);
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [figmaConn, setFigmaConn] = useState<FigmaConn>(null);
+  const [figmaLoading, setFigmaLoading] = useState(true);
   const [figmaUrl, setFigmaUrl] = useState("");
+  const [figmaImporting, setFigmaImporting] = useState(false);
+  const [figmaError, setFigmaError] = useState<string | null>(null);
+  const [figmaResult, setFigmaResult] = useState<{ name?: string; pages: { name: string; nodeId: string }[] } | null>(null);
+
+  // Load existing Figma connection
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("figma_connections")
+        .select("figma_handle, figma_email, figma_img_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!cancelled) {
+        setFigmaConn(data ?? null);
+        setFigmaLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Toast based on ?figma=...
+  useEffect(() => {
+    if (!search.figma) return;
+    if (search.figma === "connected") toast.success("Figma connected");
+    else if (search.figma.startsWith("error:")) toast.error(`Figma: ${search.figma.slice(6).replace(/_/g, " ")}`);
+    nav({ to: "/upload", replace: true, search: {} });
+  }, [search.figma, nav]);
+
+  async function connectFigma() {
+    if (!session) return;
+    try {
+      const r = await fetch("/auth/figma/start", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Failed to start");
+      window.location.href = data.authUrl;
+    } catch (e: any) {
+      toast.error(e.message || "Couldn't start Figma OAuth");
+    }
+  }
+
+  async function disconnectFigma() {
+    if (!session) return;
+    const r = await fetch("/api/figma/disconnect", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (r.ok) {
+      setFigmaConn(null);
+      setFigmaResult(null);
+      toast.success("Figma disconnected");
+    } else {
+      toast.error("Disconnect failed");
+    }
+  }
+
+  async function importFromFigma() {
+    if (!session) return;
+    setFigmaError(null);
+    setFigmaResult(null);
+    setFigmaImporting(true);
+    try {
+      const r = await fetch("/api/figma/import", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ url: figmaUrl }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Import failed");
+      setFigmaResult({ name: data.name, pages: data.pages || [] });
+      toast.success(`Loaded ${data.pages?.length || 0} pages from "${data.name}"`);
+    } catch (e: any) {
+      setFigmaError(e.message || "Import failed");
+    } finally {
+      setFigmaImporting(false);
+    }
+  }
 
   const handleFile = useCallback(async (file: File) => {
     if (!user) return;
@@ -51,36 +151,102 @@ function UploadPage() {
     }
   }, [user, nav]);
 
-  async function importFromUrl() {
-    if (!user) return;
-    if (!figmaUrl.startsWith("http")) return toast.error("Paste a valid Figma URL");
-    setBusy(true);
-    const { data, error } = await supabase
-      .from("projects")
-      .insert({
-        user_id: user.id,
-        name: "From Figma URL",
-        original_zip_url: figmaUrl,
-        html_content: `<div style="padding:60px;text-align:center;font-family:sans-serif"><h1>Imported from Figma</h1><p>Paste the ZIP export to get the live design. URL saved: ${figmaUrl}</p></div>`,
-        css_content: "",
-      })
-      .select("id").single();
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    nav({ to: "/projects/$id/editor", params: { id: data!.id } });
-  }
-
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
       <Link to="/dashboard" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-6">
         <ArrowLeft size={14} /> Back to dashboard
       </Link>
       <div className="text-xs font-display uppercase tracking-widest text-muted-foreground">Step 1 of 5</div>
-      <h1 className="text-4xl mt-1 mb-2">Import your Figma export</h1>
+      <h1 className="text-4xl mt-1 mb-2">Import your design</h1>
       <p className="text-muted-foreground mb-8">
-        Drop the ZIP from the Builder.io Visual Copilot Figma plugin.
+        Connect Figma and paste a file URL, or drop a Builder.io ZIP.
       </p>
 
+      {/* Figma section */}
+      <div className="panel p-6 mb-6" style={{ borderColor: "var(--accent)" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Figma size={18} style={{ color: "var(--accent)" }} />
+          <h2 className="text-xl font-display uppercase tracking-widest">Import from Figma</h2>
+        </div>
+
+        {figmaLoading ? (
+          <div className="text-sm text-muted-foreground">Loading…</div>
+        ) : !figmaConn ? (
+          <div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Connect your Figma account to import any file you have access to.
+            </p>
+            <button onClick={connectFigma} className="btn-primary inline-flex items-center gap-2">
+              <Figma size={16} /> Connect Figma
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                {figmaConn.figma_img_url && (
+                  <img src={figmaConn.figma_img_url} alt="" className="w-8 h-8 rounded-full" />
+                )}
+                <div>
+                  <div className="text-sm">Connected as <span style={{ color: "var(--accent)" }}>{figmaConn.figma_handle || figmaConn.figma_email || "Figma user"}</span></div>
+                  {figmaConn.figma_email && <div className="text-xs text-muted-foreground">{figmaConn.figma_email}</div>}
+                </div>
+              </div>
+              <button onClick={disconnectFigma} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                <LogOut size={12} /> Disconnect
+              </button>
+            </div>
+
+            <label className="text-xs font-display uppercase tracking-widest text-muted-foreground flex items-center gap-1 mb-2">
+              <LinkIcon size={12} /> Paste your Figma file URL
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={figmaUrl}
+                onChange={e => setFigmaUrl(e.target.value)}
+                placeholder="https://figma.com/design/…"
+                className="input-brand flex-1"
+                disabled={figmaImporting}
+              />
+              <button
+                onClick={importFromFigma}
+                disabled={figmaImporting || !figmaUrl}
+                className="btn-primary"
+              >
+                {figmaImporting ? "Importing…" : "Import"}
+              </button>
+            </div>
+
+            {figmaError && (
+              <div className="mt-3 text-sm" style={{ color: "#ff6b6b" }}>{figmaError}</div>
+            )}
+
+            {figmaResult && (
+              <div className="mt-4 p-4 rounded" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-2">
+                  {figmaResult.name} — {figmaResult.pages.length} page{figmaResult.pages.length === 1 ? "" : "s"} found
+                </div>
+                <ul className="text-sm space-y-1">
+                  {figmaResult.pages.map(p => (
+                    <li key={p.nodeId} className="flex items-center justify-between gap-2">
+                      <span>{p.name}</span>
+                      <code className="text-xs text-muted-foreground">{p.nodeId}</code>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Page selection and conversion come in the next phase.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ZIP fallback */}
+      <div className="text-xs font-display uppercase tracking-widest text-muted-foreground mb-3">
+        Or upload a Builder.io ZIP
+      </div>
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -91,7 +257,7 @@ function UploadPage() {
         }}
         className="relative rounded-md transition-colors"
         style={{
-          border: `2px dashed ${dragOver ? "var(--accent)" : "var(--accent)"}`,
+          border: `2px dashed var(--accent)`,
           background: dragOver ? "rgba(200,240,0,0.05)" : "var(--surface)",
           padding: "60px 24px",
         }}
@@ -120,23 +286,6 @@ function UploadPage() {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="mt-10 panel p-6">
-        <div className="flex items-center gap-2 text-sm font-display uppercase tracking-widest mb-3">
-          <Link2 size={16} style={{ color: "var(--accent)" }} /> Or paste a Figma share URL
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            value={figmaUrl} onChange={e => setFigmaUrl(e.target.value)}
-            placeholder="https://www.figma.com/file/…"
-            className="input-brand flex-1"
-          />
-          <button onClick={importFromUrl} disabled={busy} className="btn-ghost">Import</button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          (URL fallback creates a placeholder project — for full design fidelity, drop the ZIP.)
-        </p>
       </div>
     </div>
   );

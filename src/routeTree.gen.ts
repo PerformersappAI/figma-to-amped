@@ -18,6 +18,10 @@ import { Route as ApiAiDesignChatRouteImport } from './routes/api/ai-design-chat
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
+import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
+import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
+import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disconnect'
 import { Route as AuthenticatedProjectsIdPreviewRouteImport } from './routes/_authenticated/projects/$id/preview'
 import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_authenticated/projects/$id/editor'
 
@@ -65,6 +69,26 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthFigmaStartRoute = AuthFigmaStartRouteImport.update({
+  id: '/auth/figma/start',
+  path: '/auth/figma/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthFigmaCallbackRoute = AuthFigmaCallbackRouteImport.update({
+  id: '/auth/figma/callback',
+  path: '/auth/figma/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFigmaImportRoute = ApiFigmaImportRouteImport.update({
+  id: '/api/figma/import',
+  path: '/api/figma/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFigmaDisconnectRoute = ApiFigmaDisconnectRouteImport.update({
+  id: '/api/figma/disconnect',
+  path: '/api/figma/disconnect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjectsIdPreviewRoute =
   AuthenticatedProjectsIdPreviewRouteImport.update({
     id: '/projects/$id/preview',
@@ -87,6 +111,10 @@ export interface FileRoutesByFullPath {
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/import': typeof ApiFigmaImportRoute
+  '/auth/figma/callback': typeof AuthFigmaCallbackRoute
+  '/auth/figma/start': typeof AuthFigmaStartRoute
   '/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
 }
@@ -99,6 +127,10 @@ export interface FileRoutesByTo {
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/import': typeof ApiFigmaImportRoute
+  '/auth/figma/callback': typeof AuthFigmaCallbackRoute
+  '/auth/figma/start': typeof AuthFigmaStartRoute
   '/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
 }
@@ -113,6 +145,10 @@ export interface FileRoutesById {
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/import': typeof ApiFigmaImportRoute
+  '/auth/figma/callback': typeof AuthFigmaCallbackRoute
+  '/auth/figma/start': typeof AuthFigmaStartRoute
   '/_authenticated/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/_authenticated/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
 }
@@ -127,6 +163,10 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/disconnect'
+    | '/api/figma/import'
+    | '/auth/figma/callback'
+    | '/auth/figma/start'
     | '/projects/$id/editor'
     | '/projects/$id/preview'
   fileRoutesByTo: FileRoutesByTo
@@ -139,6 +179,10 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/disconnect'
+    | '/api/figma/import'
+    | '/auth/figma/callback'
+    | '/auth/figma/start'
     | '/projects/$id/editor'
     | '/projects/$id/preview'
   id:
@@ -152,6 +196,10 @@ export interface FileRouteTypes {
     | '/_authenticated/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/disconnect'
+    | '/api/figma/import'
+    | '/auth/figma/callback'
+    | '/auth/figma/start'
     | '/_authenticated/projects/$id/editor'
     | '/_authenticated/projects/$id/preview'
   fileRoutesById: FileRoutesById
@@ -163,6 +211,10 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
   PreviewProjectIdRoute: typeof PreviewProjectIdRoute
+  ApiFigmaDisconnectRoute: typeof ApiFigmaDisconnectRoute
+  ApiFigmaImportRoute: typeof ApiFigmaImportRoute
+  AuthFigmaCallbackRoute: typeof AuthFigmaCallbackRoute
+  AuthFigmaStartRoute: typeof AuthFigmaStartRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -230,6 +282,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/auth/figma/start': {
+      id: '/auth/figma/start'
+      path: '/auth/figma/start'
+      fullPath: '/auth/figma/start'
+      preLoaderRoute: typeof AuthFigmaStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/figma/callback': {
+      id: '/auth/figma/callback'
+      path: '/auth/figma/callback'
+      fullPath: '/auth/figma/callback'
+      preLoaderRoute: typeof AuthFigmaCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/figma/import': {
+      id: '/api/figma/import'
+      path: '/api/figma/import'
+      fullPath: '/api/figma/import'
+      preLoaderRoute: typeof ApiFigmaImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/figma/disconnect': {
+      id: '/api/figma/disconnect'
+      path: '/api/figma/disconnect'
+      fullPath: '/api/figma/disconnect'
+      preLoaderRoute: typeof ApiFigmaDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/projects/$id/preview': {
       id: '/_authenticated/projects/$id/preview'
       path: '/projects/$id/preview'
@@ -274,17 +354,11 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
   PreviewProjectIdRoute: PreviewProjectIdRoute,
+  ApiFigmaDisconnectRoute: ApiFigmaDisconnectRoute,
+  ApiFigmaImportRoute: ApiFigmaImportRoute,
+  AuthFigmaCallbackRoute: AuthFigmaCallbackRoute,
+  AuthFigmaStartRoute: AuthFigmaStartRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
