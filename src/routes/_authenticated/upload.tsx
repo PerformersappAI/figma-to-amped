@@ -396,6 +396,18 @@ function UploadPage() {
           </div>
         )}
       </div>
+
+      {converting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,10,10,0.92)" }}>
+          <div className="text-center px-6">
+            <div className="inline-block w-12 h-12 mb-6 rounded-full animate-spin" style={{ borderWidth: 3, borderStyle: "solid", borderColor: "var(--accent) transparent var(--accent) transparent" }} />
+            <div className="font-display uppercase tracking-widest text-2xl" style={{ color: "var(--accent)" }}>
+              {convertStatus || "Working…"}
+            </div>
+            <div className="text-sm text-muted-foreground mt-3">This usually takes 10–30 seconds.</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
