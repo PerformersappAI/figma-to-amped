@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { convertFigmaFrame, refreshFigmaTokenIfNeeded } from "@/lib/figma-convert.server";
+import { convertFigmaFrame, refreshFigmaTokenIfNeeded, ConvertPhaseError } from "@/lib/figma-convert.server";
 
 function json(body: any, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -58,8 +58,10 @@ export const Route = createFileRoute("/api/figma/convert")({
             },
           });
         } catch (e: any) {
-          console.error("figma convert error", e);
-          return json({ error: e?.message || "Server error" }, 500);
+          const phase = e instanceof ConvertPhaseError ? e.phase : "unknown";
+          const message = e?.message || "Server error";
+          console.error("figma convert error", phase, message, e?.stack);
+          return json({ error: message, phase }, 500);
         }
       },
     },

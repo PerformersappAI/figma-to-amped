@@ -262,13 +262,25 @@ function UploadPage() {
         const nodeId = page.figma_node_id!;
         await supabase.from("pages").update({ status: "building" }).eq("id", page.id);
         try {
-          const r = await fetch("/api/figma/convert", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-            body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: project.id }),
-          });
-          const data = await r.json();
-          if (!r.ok) throw new Error(data?.error || "Conversion failed");
+          let r: Response;
+          try {
+            r = await fetch("/api/figma/convert", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+              body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: project.id }),
+            });
+          } catch (netErr: any) {
+            // Worker crashed / timed out before producing a response
+            throw new Error(`Network error (worker may have timed out): ${netErr?.message || "Failed to fetch"}`);
+          }
+          const raw = await r.text();
+          let data: any = null;
+          try { data = raw ? JSON.parse(raw) : null; } catch { /* not JSON */ }
+          if (!r.ok) {
+            const phase = data?.phase ? `[${data.phase}] ` : "";
+            const detail = data?.error || raw?.slice(0, 200) || `HTTP ${r.status}`;
+            throw new Error(`${phase}${detail}`);
+          }
           await supabase.from("pages").update({
             status: "ready",
             html: data.html,
@@ -304,13 +316,23 @@ function UploadPage() {
     if (!batch || !session || !figmaResult?.fileKey) return;
     await supabase.from("pages").update({ status: "building", error_message: null }).eq("id", pageId);
     try {
-      const r = await fetch("/api/figma/convert", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
-        body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: batch.projectId }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data?.error || "Retry failed");
+      let r: Response;
+      try {
+        r = await fetch("/api/figma/convert", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+          body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId, projectId: batch.projectId }),
+        });
+      } catch (netErr: any) {
+        throw new Error(`Network error (worker may have timed out): ${netErr?.message || "Failed to fetch"}`);
+      }
+      const raw = await r.text();
+      let data: any = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch { /* */ }
+      if (!r.ok) {
+        const phase = data?.phase ? `[${data.phase}] ` : "";
+        throw new Error(`${phase}${data?.error || raw?.slice(0, 200) || `HTTP ${r.status}`}`);
+      }
       await supabase.from("pages").update({
         status: "ready",
         html: data.html,

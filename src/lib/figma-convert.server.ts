@@ -2,6 +2,29 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { convertFrame, collectImageRefs, collectVectorNodeIds } from "@/lib/figma-convert";
 
+// Phase-tagged error so callers know exactly which step blew up.
+export class ConvertPhaseError extends Error {
+  phase: string;
+  constructor(phase: string, message: string, opts?: { cause?: unknown }) {
+    super(`[${phase}] ${message}`);
+    this.phase = phase;
+    if (opts?.cause) (this as any).cause = opts.cause;
+  }
+}
+
+// Bounded fetch — Cloudflare Workers do NOT honor the default fetch timeout
+// reliably, so we attach an AbortController to every outbound call.
+async function tfetch(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
+  const { timeoutMs = 20_000, ...rest } = init;
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+  try {
+    return await fetch(url, { ...rest, signal: ac.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 function sanitizeSvg(svg: string): string {
   let s = svg;
   s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
@@ -17,7 +40,7 @@ function sanitizeSvg(svg: string): string {
 
 async function downloadAndStore(url: string, path: string, contentType = "image/png"): Promise<string | null> {
   try {
-    const r = await fetch(url);
+    const r = await tfetch(url, { timeoutMs: 30_000 });
     if (!r.ok) return null;
     const buf = new Uint8Array(await r.arrayBuffer());
     const { error } = await supabaseAdmin.storage.from("project-assets").upload(path, buf, { contentType, upsert: true });
@@ -29,31 +52,46 @@ async function downloadAndStore(url: string, path: string, contentType = "image/
 
 const CLAUDE_CLEANUP_PROMPT = `Here is auto-generated HTML and CSS from a Figma frame. Clean it up: (1) replace divs with semantic tags where appropriate (header, nav, main, section, footer, article), (2) consolidate redundant CSS rules, (3) add meaningful aria-labels and alt attributes, (4) simplify deeply nested wrappers if they have no semantic purpose. Preserve the visual output exactly — do not change layout, spacing, colors, or content. CRITICAL: When you encounter <span class="figma-vector"> elements containing inline SVG, do NOT modify the SVG markup in any way. You may rename the wrapping element to a more semantic tag (e.g. <i class="icon">) or change its class names, but the inner <svg>...</svg> markup must be preserved verbatim — every attribute, path, and child element. Return ONLY a JSON object of shape {"html":"...","css":"..."} with no markdown fences and no explanation.`;
 
-async function claudeCleanup(html: string, css: string) {
+async function claudeCleanup(html: string, css: string): Promise<{ html: string; css: string; usage?: { input_tokens: number; output_tokens: number } } | { skipped: true; reason: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8000,
-      system: CLAUDE_CLEANUP_PROMPT,
-      messages: [{ role: "user", content: `HTML:\n\n${html}\n\nCSS:\n\n${css}` }],
-    }),
-  });
-  if (!r.ok) { console.error("claude cleanup failed", r.status, await r.text().catch(() => "")); return null; }
-  const data = (await r.json()) as any;
+  if (!apiKey) return { skipped: true, reason: "no_api_key" };
+  let r: Response;
+  try {
+    r = await tfetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 8000,
+        system: CLAUDE_CLEANUP_PROMPT,
+        messages: [{ role: "user", content: `HTML:\n\n${html}\n\nCSS:\n\n${css}` }],
+      }),
+      timeoutMs: 45_000,
+    });
+  } catch (e: any) {
+    console.error("claude cleanup network error", e?.message || e);
+    return { skipped: true, reason: `network: ${e?.message || "unknown"}` };
+  }
+  if (!r.ok) {
+    const body = await r.text().catch(() => "");
+    console.error("claude cleanup http", r.status, body.slice(0, 500));
+    // 401/403 = bad key, 429 = rate limit, 402 = no credit — surface but don't fail the whole convert
+    return { skipped: true, reason: `http_${r.status}` };
+  }
+  const data = (await r.json().catch(() => null)) as any;
   const text: string = data?.content?.[0]?.text || "";
   try {
     const m = text.match(/\{[\s\S]*\}/);
-    if (!m) return null;
+    if (!m) return { skipped: true, reason: "no_json_in_response" };
     const parsed = JSON.parse(m[0]);
     if (typeof parsed.html === "string" && typeof parsed.css === "string") {
-      return { html: parsed.html, css: parsed.css, usage: data.usage as { input_tokens: number; output_tokens: number } | undefined };
+      return { html: parsed.html, css: parsed.css, usage: data.usage };
     }
-  } catch (e) { console.error("claude parse failed", e); }
-  return null;
+    return { skipped: true, reason: "missing_html_or_css" };
+  } catch (e: any) {
+    console.error("claude parse failed", e?.message || e);
+    return { skipped: true, reason: "parse_error" };
+  }
 }
 
 function calcCost(usage?: { input_tokens: number; output_tokens: number }) {
@@ -104,110 +142,154 @@ export async function convertFigmaFrame(opts: {
 }): Promise<ConvertedFrame> {
   const { accessToken, fileKey, nodeId, userId, projectId = null } = opts;
 
-  const nodeRes = await fetch(
-    `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!nodeRes.ok) throw new Error("Couldn't load frame from Figma.");
-  const nodeData = (await nodeRes.json()) as any;
-  const frameNode = nodeData?.nodes?.[nodeId]?.document;
-  if (!frameNode) throw new Error("Frame not found in Figma file.");
+  // ── Phase 1: fetch Figma frame node ─────────────────────────────────────
+  let frameNode: any;
+  try {
+    const nodeRes = await tfetch(
+      `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 25_000 }
+    );
+    if (!nodeRes.ok) {
+      throw new ConvertPhaseError("figma_node_fetch", `Figma returned ${nodeRes.status}`);
+    }
+    const nodeData = (await nodeRes.json()) as any;
+    frameNode = nodeData?.nodes?.[nodeId]?.document;
+    if (!frameNode) throw new ConvertPhaseError("figma_node_fetch", "Frame not found in file");
+  } catch (e: any) {
+    if (e instanceof ConvertPhaseError) throw e;
+    throw new ConvertPhaseError("figma_node_fetch", e?.message || "Unknown error", { cause: e });
+  }
 
-  // Images
-  const imageRefs = Array.from(collectImageRefs(frameNode));
+  // ── Phase 2: download bitmap images ────────────────────────────────────
   const imageMap: Record<string, string> = {};
-  if (imageRefs.length > 0) {
-    const imgsRes = await fetch(`https://api.figma.com/v1/files/${fileKey}/images`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (imgsRes.ok) {
-      const imgData = (await imgsRes.json()) as any;
-      const meta: Record<string, string> = imgData?.meta?.images || {};
-      const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
-      await Promise.all(imageRefs.map(async (ref) => {
-        const url = meta[ref];
-        if (!url) return;
-        const stored = await downloadAndStore(url, `figma/${userId}/${fileKey}/${slug}/${ref}.png`);
-        if (stored) imageMap[ref] = stored;
-      }));
+  try {
+    const imageRefs = Array.from(collectImageRefs(frameNode));
+    if (imageRefs.length > 0) {
+      const imgsRes = await tfetch(`https://api.figma.com/v1/files/${fileKey}/images`, {
+        headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 20_000,
+      });
+      if (imgsRes.ok) {
+        const imgData = (await imgsRes.json()) as any;
+        const meta: Record<string, string> = imgData?.meta?.images || {};
+        const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
+        await Promise.all(imageRefs.map(async (ref) => {
+          const url = meta[ref];
+          if (!url) return;
+          const stored = await downloadAndStore(url, `figma/${userId}/${fileKey}/${slug}/${ref}.png`);
+          if (stored) imageMap[ref] = stored;
+        }));
+      }
     }
+  } catch (e: any) {
+    console.error("[images phase] non-fatal:", e?.message || e);
+    // images are non-fatal — keep going with whatever we got
   }
 
-  // Reference screenshot
+  // ── Phase 3: reference screenshot (non-fatal) ──────────────────────────
   let designReference: string | null = null;
-  const refRes = await fetch(
-    `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (refRes.ok) {
-    const refData = (await refRes.json()) as any;
-    const refUrl = refData?.images?.[nodeId];
-    if (refUrl) {
-      const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
-      designReference = await downloadAndStore(refUrl, `figma/${userId}/${fileKey}/${slug}/_reference.png`);
+  try {
+    const refRes = await tfetch(
+      `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 20_000 }
+    );
+    if (refRes.ok) {
+      const refData = (await refRes.json()) as any;
+      const refUrl = refData?.images?.[nodeId];
+      if (refUrl) {
+        const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
+        designReference = await downloadAndStore(refUrl, `figma/${userId}/${fileKey}/${slug}/_reference.png`);
+      }
     }
+  } catch (e: any) {
+    console.error("[reference phase] non-fatal:", e?.message || e);
   }
 
-  // Vectors
-  const vectorIds = collectVectorNodeIds(frameNode);
+  // ── Phase 4: vector SVG fetch (non-fatal per chunk) ────────────────────
   const vectorSvgMap: Record<string, string> = {};
-  if (vectorIds.length > 0) {
-    const vecPath = (id: string) => `figma/${userId}/${fileKey}/vectors/${id.replace(/[^a-zA-Z0-9]/g, "_")}.svg`;
-    const missing: string[] = [];
-    await Promise.all(vectorIds.map(async (id) => {
-      try {
-        const { data } = await supabaseAdmin.storage.from("project-assets").download(vecPath(id));
-        if (data) vectorSvgMap[id] = await data.text();
-        else missing.push(id);
-      } catch { missing.push(id); }
-    }));
-    for (let i = 0; i < missing.length; i += 100) {
-      const chunk = missing.slice(i, i + 100);
-      const r = await fetch(
-        `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(chunk.join(","))}&format=svg&svg_simplify_stroke=true`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      if (!r.ok) { console.error("figma svg fetch", r.status); continue; }
-      const d = (await r.json()) as any;
-      const urls: Record<string, string | null> = d.images || {};
-      await Promise.all(chunk.map(async (id) => {
-        const u = urls[id]; if (!u) return;
+  try {
+    const vectorIds = collectVectorNodeIds(frameNode);
+    if (vectorIds.length > 0) {
+      const vecPath = (id: string) => `figma/${userId}/${fileKey}/vectors/${id.replace(/[^a-zA-Z0-9]/g, "_")}.svg`;
+      const missing: string[] = [];
+      await Promise.all(vectorIds.map(async (id) => {
         try {
-          const sr = await fetch(u); if (!sr.ok) return;
-          const cleaned = sanitizeSvg(await sr.text()); if (!cleaned) return;
-          vectorSvgMap[id] = cleaned;
-          await supabaseAdmin.storage.from("project-assets").upload(
-            vecPath(id), new TextEncoder().encode(cleaned),
-            { contentType: "image/svg+xml", upsert: true },
-          );
-        } catch (e) { console.error("svg dl/store", id, e); }
+          const { data } = await supabaseAdmin.storage.from("project-assets").download(vecPath(id));
+          if (data) vectorSvgMap[id] = await data.text();
+          else missing.push(id);
+        } catch { missing.push(id); }
       }));
+      for (let i = 0; i < missing.length; i += 100) {
+        const chunk = missing.slice(i, i + 100);
+        try {
+          const r = await tfetch(
+            `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(chunk.join(","))}&format=svg&svg_simplify_stroke=true`,
+            { headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 25_000 }
+          );
+          if (!r.ok) { console.error("figma svg fetch", r.status); continue; }
+          const d = (await r.json()) as any;
+          const urls: Record<string, string | null> = d.images || {};
+          await Promise.all(chunk.map(async (id) => {
+            const u = urls[id]; if (!u) return;
+            try {
+              const sr = await tfetch(u, { timeoutMs: 15_000 });
+              if (!sr.ok) return;
+              const cleaned = sanitizeSvg(await sr.text());
+              if (!cleaned) return;
+              vectorSvgMap[id] = cleaned;
+              await supabaseAdmin.storage.from("project-assets").upload(
+                vecPath(id), new TextEncoder().encode(cleaned),
+                { contentType: "image/svg+xml", upsert: true },
+              );
+            } catch (e: any) { console.error("svg dl/store", id, e?.message || e); }
+          }));
+        } catch (e: any) {
+          console.error("[vectors chunk] non-fatal:", e?.message || e);
+        }
+      }
     }
+  } catch (e: any) {
+    console.error("[vectors phase] non-fatal:", e?.message || e);
   }
 
-  let { html, css } = convertFrame(frameNode, imageMap, vectorSvgMap);
+  // ── Phase 5: deterministic HTML/CSS conversion ─────────────────────────
+  let html: string;
+  let css: string;
+  try {
+    const out = convertFrame(frameNode, imageMap, vectorSvgMap);
+    html = out.html;
+    css = out.css;
+  } catch (e: any) {
+    throw new ConvertPhaseError("html_conversion", e?.message || "convertFrame threw", { cause: e });
+  }
+
+  // ── Phase 6: Claude cleanup (non-fatal — fall back to deterministic HTML)
   let usedClaude = false;
   let cost = 0;
   let usage: { input_tokens: number; output_tokens: number } | undefined;
-
   if (html.length >= 2000) {
     const cleaned = await claudeCleanup(html, css);
-    if (cleaned) {
+    if ("skipped" in cleaned) {
+      console.warn("[claude cleanup skipped]", cleaned.reason);
+    } else {
       html = cleaned.html;
       css = cleaned.css;
       usedClaude = true;
       usage = cleaned.usage;
       cost = calcCost(cleaned.usage);
-      await supabaseAdmin.from("ai_usage_log").insert({
-        user_id: userId,
-        project_id: projectId,
-        operation: "figma_convert_cleanup",
-        model: "claude-sonnet-4-5",
-        input_tokens: cleaned.usage?.input_tokens ?? null,
-        output_tokens: cleaned.usage?.output_tokens ?? null,
-        cost_usd: cost,
-        metadata: { fileKey, nodeId, frameName: frameNode.name },
-      });
+      try {
+        await supabaseAdmin.from("ai_usage_log").insert({
+          user_id: userId,
+          project_id: projectId,
+          operation: "figma_convert_cleanup",
+          model: "claude-sonnet-4-5",
+          input_tokens: cleaned.usage?.input_tokens ?? null,
+          output_tokens: cleaned.usage?.output_tokens ?? null,
+          cost_usd: cost,
+          metadata: { fileKey, nodeId, frameName: frameNode.name },
+        });
+      } catch (e: any) {
+        console.error("ai_usage_log insert failed", e?.message || e);
+      }
     }
   }
 
