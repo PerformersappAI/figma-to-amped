@@ -285,8 +285,12 @@ export function collectImageRefs(node: any, out: Set<string> = new Set()): Set<s
   return out;
 }
 
-export function convertFrame(node: any, imageMap: Record<string, string>): { html: string; css: string } {
-  const ctx: ConvertCtx = { imageMap, cssRules: new Map(), classNames: new Set() };
+export function convertFrame(
+  node: any,
+  imageMap: Record<string, string>,
+  vectorSvgMap: Record<string, string> = {}
+): { html: string; css: string } {
+  const ctx: ConvertCtx = { imageMap, cssRules: new Map(), classNames: new Set(), vectorSvgMap };
   const inner = convertNode(node, ctx, 0, true);
   const html = `<main>\n${inner}\n</main>`;
   const css = buildCss(ctx);
