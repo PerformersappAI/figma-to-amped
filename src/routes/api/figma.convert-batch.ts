@@ -98,37 +98,36 @@ export const Route = createFileRoute("/api/figma/convert-batch")({
             pageIds.push({ pageId: page.id, nodeId: f.nodeId });
           }
 
-          // Process sequentially in background
-          (async () => {
-            for (const { pageId, nodeId } of pageIds) {
-              await supabaseAdmin.from("pages").update({ status: "building" }).eq("id", pageId);
-              try {
-                const result = await convertFigmaFrame({
-                  accessToken, fileKey, nodeId, userId, projectId,
-                });
-                await supabaseAdmin.from("pages").update({
-                  status: "ready",
-                  html: result.html,
-                  css: result.css,
-                  figma_design_reference_url: result.designReference,
-                  figma_metadata: {
-                    frameName: result.frameName,
-                    width: result.width,
-                    height: result.height,
-                    usedClaude: result.usedClaude,
-                    cost: result.cost,
-                  },
-                  error_message: null,
-                }).eq("id", pageId);
-              } catch (e: any) {
-                console.error("convert frame failed", nodeId, e);
-                await supabaseAdmin.from("pages").update({
-                  status: "failed",
-                  error_message: e?.message || "Conversion failed",
-                }).eq("id", pageId);
-              }
+          // Process sequentially. Realtime page UPDATE events stream progress to the
+          // client during this long-running request — no need for fire-and-forget.
+          for (const { pageId, nodeId } of pageIds) {
+            await supabaseAdmin.from("pages").update({ status: "building" }).eq("id", pageId);
+            try {
+              const result = await convertFigmaFrame({
+                accessToken, fileKey, nodeId, userId, projectId,
+              });
+              await supabaseAdmin.from("pages").update({
+                status: "ready",
+                html: result.html,
+                css: result.css,
+                figma_design_reference_url: result.designReference,
+                figma_metadata: {
+                  frameName: result.frameName,
+                  width: result.width,
+                  height: result.height,
+                  usedClaude: result.usedClaude,
+                  cost: result.cost,
+                },
+                error_message: null,
+              }).eq("id", pageId);
+            } catch (e: any) {
+              console.error("convert frame failed", nodeId, e);
+              await supabaseAdmin.from("pages").update({
+                status: "failed",
+                error_message: e?.message || "Conversion failed",
+              }).eq("id", pageId);
             }
-          })();
+          }
 
           return json({ projectId, pageIds: pageIds.map(p => p.pageId) });
         } catch (e: any) {
