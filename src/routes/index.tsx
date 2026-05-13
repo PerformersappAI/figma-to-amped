@@ -28,7 +28,7 @@ function Landing() {
             <span style={{ color: "var(--accent)" }}>website. Today.</span>
           </h1>
           <p className="max-w-xl mx-auto mt-8 text-lg text-muted-foreground">
-            Drop your Builder.io export. Edit it visually. Talk to an AI design assistant.
+            Drop your site design export. Edit it visually. Talk to an AI design assistant.
             Publish a shareable preview in minutes — no developer required.
           </p>
           <div className="flex items-center justify-center gap-3 mt-10">
