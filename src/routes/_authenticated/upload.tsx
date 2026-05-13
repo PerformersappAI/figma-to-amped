@@ -102,6 +102,7 @@ function UploadPage() {
     if (!session) return;
     setFigmaError(null);
     setFigmaResult(null);
+    setSelectedFrame(null);
     setFigmaImporting(true);
     try {
       const r = await fetch("/api/figma/import", {
@@ -114,12 +115,70 @@ function UploadPage() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.error || "Import failed");
-      setFigmaResult({ name: data.name, pages: data.pages || [] });
-      toast.success(`Loaded ${data.pages?.length || 0} pages from "${data.name}"`);
+      setFigmaResult({ fileKey: data.fileKey, name: data.name, pages: data.pages || [] });
+      const totalFrames = (data.pages || []).reduce((s: number, p: any) => s + (p.frames?.length || 0), 0);
+      toast.success(`Loaded ${totalFrames} frame${totalFrames === 1 ? "" : "s"} from "${data.name}"`);
     } catch (e: any) {
       setFigmaError(e.message || "Import failed");
     } finally {
       setFigmaImporting(false);
+    }
+  }
+
+  async function convertFrame() {
+    if (!session || !user || !selectedFrame || !figmaResult?.fileKey) return;
+    setConverting(true);
+    const messages = [
+      "Reading your design…",
+      "Pulling images…",
+      "Generating code…",
+      "Cleaning up with AI…",
+    ];
+    let i = 0;
+    setConvertStatus(messages[0]);
+    const ticker = setInterval(() => {
+      i = (i + 1) % messages.length;
+      setConvertStatus(messages[i]);
+    }, 2200);
+    try {
+      const r = await fetch("/api/figma/convert", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ fileKey: figmaResult.fileKey, nodeId: selectedFrame.nodeId }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Conversion failed");
+
+      // Create project
+      const frame = figmaResult.pages
+        .flatMap(p => p.frames)
+        .find(f => f.nodeId === selectedFrame.nodeId);
+      const projectName = `${figmaResult.name || "Figma"} — ${frame?.name || "Frame"}`;
+      const { data: project, error } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: projectName,
+          html_content: data.html,
+          css_content: data.css,
+          figma_design_reference: data.designReference || null,
+          figma_metadata: data.metadata || null,
+        })
+        .select("id")
+        .single();
+      if (error || !project) throw error || new Error("Failed to save project");
+
+      toast.success("Converted! Opening editor…");
+      nav({ to: "/projects/$id/editor", params: { id: project.id } });
+    } catch (e: any) {
+      toast.error(e.message || "Conversion failed");
+      setConverting(false);
+      setConvertStatus("");
+    } finally {
+      clearInterval(ticker);
     }
   }
 
