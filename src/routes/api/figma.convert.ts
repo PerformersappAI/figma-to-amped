@@ -77,7 +77,7 @@ async function downloadAndStore(url: string, path: string, contentType = "image/
   }
 }
 
-const CLAUDE_CLEANUP_PROMPT = `Here is auto-generated HTML and CSS from a Figma frame. Clean it up: (1) replace divs with semantic tags where appropriate (header, nav, main, section, footer, article), (2) consolidate redundant CSS rules, (3) add meaningful aria-labels and alt attributes, (4) simplify deeply nested wrappers if they have no semantic purpose. Preserve the visual output exactly — do not change layout, spacing, colors, or content. Return ONLY a JSON object of shape {"html":"...","css":"..."} with no markdown fences and no explanation.`;
+const CLAUDE_CLEANUP_PROMPT = `Here is auto-generated HTML and CSS from a Figma frame. Clean it up: (1) replace divs with semantic tags where appropriate (header, nav, main, section, footer, article), (2) consolidate redundant CSS rules, (3) add meaningful aria-labels and alt attributes, (4) simplify deeply nested wrappers if they have no semantic purpose. Preserve the visual output exactly — do not change layout, spacing, colors, or content. CRITICAL: When you encounter <span class="figma-vector"> elements containing inline SVG, do NOT modify the SVG markup in any way. You may rename the wrapping element to a more semantic tag (e.g. <i class="icon">) or change its class names, but the inner <svg>...</svg> markup must be preserved verbatim — every attribute, path, and child element. Return ONLY a JSON object of shape {"html":"...","css":"..."} with no markdown fences and no explanation.`;
 
 async function claudeCleanup(html: string, css: string): Promise<{ html: string; css: string; usage?: { input_tokens: number; output_tokens: number } } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
