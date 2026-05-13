@@ -22,6 +22,7 @@ import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
 import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
 import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disconnect'
+import { Route as ApiFigmaConvertRouteImport } from './routes/api/figma.convert'
 import { Route as AuthenticatedProjectsIdPreviewRouteImport } from './routes/_authenticated/projects/$id/preview'
 import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_authenticated/projects/$id/editor'
 
@@ -89,6 +90,11 @@ const ApiFigmaDisconnectRoute = ApiFigmaDisconnectRouteImport.update({
   path: '/api/figma/disconnect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFigmaConvertRoute = ApiFigmaConvertRouteImport.update({
+  id: '/api/figma/convert',
+  path: '/api/figma/convert',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjectsIdPreviewRoute =
   AuthenticatedProjectsIdPreviewRouteImport.update({
     id: '/projects/$id/preview',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/convert'
     | '/api/figma/disconnect'
     | '/api/figma/import'
     | '/auth/figma/callback'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/convert'
     | '/api/figma/disconnect'
     | '/api/figma/import'
     | '/auth/figma/callback'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/_authenticated/upload'
     | '/api/ai-design-chat'
     | '/preview/$projectId'
+    | '/api/figma/convert'
     | '/api/figma/disconnect'
     | '/api/figma/import'
     | '/auth/figma/callback'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
   PreviewProjectIdRoute: typeof PreviewProjectIdRoute
+  ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
   ApiFigmaDisconnectRoute: typeof ApiFigmaDisconnectRoute
   ApiFigmaImportRoute: typeof ApiFigmaImportRoute
   AuthFigmaCallbackRoute: typeof AuthFigmaCallbackRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFigmaDisconnectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/figma/convert': {
+      id: '/api/figma/convert'
+      path: '/api/figma/convert'
+      fullPath: '/api/figma/convert'
+      preLoaderRoute: typeof ApiFigmaConvertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/projects/$id/preview': {
       id: '/_authenticated/projects/$id/preview'
       path: '/projects/$id/preview'
@@ -354,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
   PreviewProjectIdRoute: PreviewProjectIdRoute,
+  ApiFigmaConvertRoute: ApiFigmaConvertRoute,
   ApiFigmaDisconnectRoute: ApiFigmaDisconnectRoute,
   ApiFigmaImportRoute: ApiFigmaImportRoute,
   AuthFigmaCallbackRoute: AuthFigmaCallbackRoute,
@@ -362,3 +383,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
