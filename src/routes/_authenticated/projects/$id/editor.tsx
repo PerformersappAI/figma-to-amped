@@ -276,7 +276,7 @@ function EditorPage() {
         </aside>
       </div>
 
-      <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} projectId={id} />
+      <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} projectId={id} figmaReference={figmaRef} />
       <PublishModal open={publishOpen} onClose={() => setPublishOpen(false)} projectId={id} onSave={save} />
     </div>
   );
