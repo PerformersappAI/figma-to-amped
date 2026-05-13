@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -6,7 +6,7 @@ import {
   Layout, Type, Image as ImageIcon, MousePointerClick, Columns2, Columns3,
   Minus, Video, FormInput, MessageSquareQuote, Megaphone, FileText, Bot,
   HelpCircle, Search, Share2, UserPlus, Lightbulb, Star, BarChart3, Zap,
-  Layers, Globe, Code2, Figma, X,
+  Layers, Globe, Figma, X, FileText as PageIcon, Home, Plus, MoreVertical,
 } from "lucide-react";
 import grapesjs, { Editor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
@@ -40,9 +40,9 @@ const LAYOUT_BLOCKS: BlockDef[] = [
 ];
 
 const AI_BLOCKS: BlockDef[] = [
-  { id: "ai-blog", label: "AI Blog Creator", icon: FileText, ai: true, content: `<div data-ai="blog" style="padding:32px;border:2px dashed #c8f000;text-align:center"><strong>AI Blog Creator</strong><p style="color:#666">Generates a fresh blog post on publish.</p></div>` },
-  { id: "ai-chatbot", label: "AI Chatbot", icon: Bot, ai: true, content: `<div data-ai="chatbot" style="padding:32px;border:2px dashed #c8f000;text-align:center"><strong>AI Chatbot</strong><p style="color:#666">Embedded conversational assistant.</p></div>` },
-  { id: "ai-faq", label: "FAQ Block", icon: HelpCircle, ai: true, content: `<div data-ai="faq" style="padding:32px;border:2px dashed #c8f000"><strong>FAQ Block</strong><p style="color:#666">AI-generated answers.</p></div>` },
+  { id: "ai-blog", label: "AI Blog Creator", icon: FileText, ai: true, content: `<div data-ai="blog" style="padding:32px;border:2px dashed #c8f000;text-align:center"><strong>AI Blog Creator</strong></div>` },
+  { id: "ai-chatbot", label: "AI Chatbot", icon: Bot, ai: true, content: `<div data-ai="chatbot" style="padding:32px;border:2px dashed #c8f000;text-align:center"><strong>AI Chatbot</strong></div>` },
+  { id: "ai-faq", label: "FAQ Block", icon: HelpCircle, ai: true, content: `<div data-ai="faq" style="padding:32px;border:2px dashed #c8f000"><strong>FAQ Block</strong></div>` },
   { id: "ai-paa", label: "People Also Ask", icon: Search, ai: true, content: `<div data-ai="paa" style="padding:32px;border:2px dashed #c8f000"><strong>People Also Ask</strong></div>` },
   { id: "ai-social", label: "Social Post Generator", icon: Share2, ai: true, content: `<div data-ai="social" style="padding:32px;border:2px dashed #c8f000"><strong>Social Post Generator</strong></div>` },
   { id: "ai-lead", label: "Lead Capture Bot", icon: UserPlus, ai: true, content: `<div data-ai="lead" style="padding:32px;border:2px dashed #c8f000"><strong>Lead Capture Bot</strong></div>` },
@@ -51,23 +51,40 @@ const AI_BLOCKS: BlockDef[] = [
   { id: "ai-llm", label: "LLM Visibility", icon: BarChart3, ai: true, content: `<div data-ai="llm-visibility" style="padding:32px;border:2px dashed #c8f000"><strong>LLM Visibility Tracker</strong></div>` },
 ];
 
-const BLANK_CANVAS = `<section style="min-height:80vh;display:flex;align-items:center;justify-content:center;background:#1a1a1a;margin:24px"><div style="border:2px dashed #c8f000;padding:80px 60px;text-align:center;max-width:640px;font-family:'Barlow Condensed',sans-serif"><div style="color:#c8f000;font-size:11px;letter-spacing:0.2em;margin-bottom:16px">FIGMASHIP</div><h1 style="color:#fff;font-size:36px;text-transform:uppercase;letter-spacing:0.05em;margin:0;font-weight:800;line-height:1.1">Your site starts here — drag a block from the left panel to begin</h1></div></section>`;
+const BLANK_CANVAS = `<section style="min-height:80vh;display:flex;align-items:center;justify-content:center;background:#1a1a1a;margin:24px"><div style="border:2px dashed #c8f000;padding:80px 60px;text-align:center;max-width:640px;font-family:'Barlow Condensed',sans-serif"><div style="color:#c8f000;font-size:11px;letter-spacing:0.2em;margin-bottom:16px">FIGMASHIP</div><h1 style="color:#fff;font-size:36px;text-transform:uppercase;letter-spacing:0.05em;margin:0;font-weight:800;line-height:1.1">Your page starts here — drag a block from the left to begin</h1></div></section>`;
 
-type LeftTab = "blocks" | "layers" | "seo";
+type LeftTab = "pages" | "blocks" | "layers" | "seo";
 type SeoSubTab = "seo" | "aeo";
+
+type PageRow = {
+  id: string;
+  name: string;
+  slug: string;
+  is_home: boolean;
+  order_index: number;
+  status: string;
+  figma_design_reference_url: string | null;
+};
+
+function slugify(s: string) {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "page";
+}
 
 function EditorPage() {
   const { id } = Route.useParams();
+  const nav = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
   const layersRef = useRef<HTMLDivElement>(null);
   const stylesRef = useRef<HTMLDivElement>(null);
+  const activePageIdRef = useRef<string | null>(null);
+
   const [name, setName] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [device, setDeviceState] = useState<"Desktop" | "Mobile">("Desktop");
-  const [leftTab, setLeftTab] = useState<LeftTab>("blocks");
+  const [leftTab, setLeftTab] = useState<LeftTab>("pages");
   const [seoTab, setSeoTab] = useState<SeoSubTab>("seo");
   const [seo, setSeo] = useState<any>({
     title: "", description: "", ogTitle: "", ogDescription: "", canonical: "", robots: "index,follow",
@@ -76,21 +93,40 @@ function EditorPage() {
   });
   const [figmaRef, setFigmaRef] = useState<string | null>(null);
   const [figmaPanelOpen, setFigmaPanelOpen] = useState(false);
+
+  const [pages, setPages] = useState<PageRow[]>([]);
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  const [newPageOpen, setNewPageOpen] = useState(false);
+
+  // Load project + pages, init editor with the home page
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data } = await supabase
-        .from("projects")
-        .select("name,html_content,css_content,grapesjson,seo,figma_design_reference")
-        .eq("id", id).single();
-      if (!mounted || !data || !ref.current) return;
-      setName(data.name);
-      if (data.figma_design_reference) {
-        setFigmaRef(data.figma_design_reference);
-        setFigmaPanelOpen(true);
+      const [{ data: proj }, { data: pageRows }] = await Promise.all([
+        supabase.from("projects").select("name,seo").eq("id", id).single(),
+        supabase.from("pages").select("id,name,slug,is_home,order_index,status,figma_design_reference_url,html,css,grapesjson").eq("project_id", id).order("order_index", { ascending: true }),
+      ]);
+      if (!mounted) return;
+      if (proj) {
+        setName(proj.name);
+        if (proj.seo && typeof proj.seo === "object" && !Array.isArray(proj.seo)) {
+          setSeo((s: any) => ({ ...s, ...(proj.seo as Record<string, any>) }));
+        }
       }
-      if (data.seo && typeof data.seo === "object" && !Array.isArray(data.seo)) {
-        setSeo((s: any) => ({ ...s, ...(data.seo as Record<string, any>) }));
+      const rows = (pageRows || []) as any[];
+      setPages(rows.map(r => ({
+        id: r.id, name: r.name, slug: r.slug, is_home: r.is_home,
+        order_index: r.order_index, status: r.status,
+        figma_design_reference_url: r.figma_design_reference_url,
+      })));
+
+      const home = rows.find(r => r.is_home) || rows[0];
+      if (!home || !ref.current) return;
+      activePageIdRef.current = home.id;
+      setActivePageId(home.id);
+      if (home.figma_design_reference_url) {
+        setFigmaRef(home.figma_design_reference_url);
+        setFigmaPanelOpen(true);
       }
 
       const editor = grapesjs.init({
@@ -100,8 +136,8 @@ function EditorPage() {
         storageManager: false,
         fromElement: false,
         panels: { defaults: [] },
-        components: data.html_content || BLANK_CANVAS,
-        style: data.css_content || "",
+        components: home.html || BLANK_CANVAS,
+        style: home.css || "",
         deviceManager: {
           devices: [
             { name: "Desktop", width: "" },
@@ -112,35 +148,121 @@ function EditorPage() {
         layerManager: { appendTo: layersRef.current ?? undefined },
         styleManager: { appendTo: stylesRef.current ?? undefined },
       });
-
-      if (data.grapesjson) {
-        try { editor.loadProjectData(data.grapesjson as any); } catch { /* ignore */ }
+      if (home.grapesjson) {
+        try { editor.loadProjectData(home.grapesjson as any); } catch { /* ignore */ }
       }
-
       editorRef.current = editor;
     })();
     return () => { mounted = false; editorRef.current?.destroy(); };
   }, [id]);
 
-  function addBlock(b: BlockDef) {
-    const ed = editorRef.current; if (!ed) return;
-    ed.addComponents(b.content);
-    toast.success(`Added ${b.label}`);
-  }
-
-  async function save() {
-    const ed = editorRef.current; if (!ed) return;
-    setSaving(true);
+  async function saveActivePage(showToast = false) {
+    const ed = editorRef.current; const pageId = activePageIdRef.current;
+    if (!ed || !pageId) return;
+    if (showToast) setSaving(true);
     const html = ed.getHtml();
     const css = ed.getCss();
     const json = ed.getProjectData();
     const { error } = await supabase
-      .from("projects")
-      .update({ html_content: html, css_content: css ?? "", grapesjson: json as any, seo })
-      .eq("id", id);
-    setSaving(false);
-    if (error) toast.error(error.message);
-    else toast.success("Draft saved");
+      .from("pages")
+      .update({ html, css: css ?? "", grapesjson: json as any })
+      .eq("id", pageId);
+    // Persist project-level SEO
+    await supabase.from("projects").update({ seo }).eq("id", id);
+    if (showToast) {
+      setSaving(false);
+      if (error) toast.error(error.message); else toast.success("Saved");
+    }
+  }
+
+  async function switchPage(pageId: string) {
+    if (pageId === activePageIdRef.current) return;
+    await saveActivePage(false);
+    const { data, error } = await supabase
+      .from("pages").select("html,css,grapesjson,figma_design_reference_url")
+      .eq("id", pageId).single();
+    if (error || !data) { toast.error("Couldn't load page"); return; }
+    const ed = editorRef.current; if (!ed) return;
+    ed.setComponents(data.html || BLANK_CANVAS);
+    ed.setStyle(data.css || "");
+    if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
+    activePageIdRef.current = pageId;
+    setActivePageId(pageId);
+    setFigmaRef(data.figma_design_reference_url || null);
+  }
+
+  async function refreshPages() {
+    const { data } = await supabase
+      .from("pages").select("id,name,slug,is_home,order_index,status,figma_design_reference_url")
+      .eq("project_id", id).order("order_index", { ascending: true });
+    setPages((data || []) as PageRow[]);
+  }
+
+  // Actions
+  async function setHome(pageId: string) {
+    await supabase.from("pages").update({ is_home: false }).eq("project_id", id);
+    await supabase.from("pages").update({ is_home: true }).eq("id", pageId);
+    await refreshPages();
+    toast.success("Home page updated");
+  }
+
+  async function renamePage(pageId: string, currentName: string) {
+    const next = window.prompt("Rename page", currentName);
+    if (!next || next === currentName) return;
+    await supabase.from("pages").update({ name: next }).eq("id", pageId);
+    await refreshPages();
+  }
+
+  async function deletePage(pageId: string) {
+    if (pages.length <= 1) return toast.error("Can't delete the last page.");
+    if (!window.confirm("Delete this page? This cannot be undone.")) return;
+    await supabase.from("pages").delete().eq("id", pageId);
+    if (activePageIdRef.current === pageId) {
+      const remaining = pages.filter(p => p.id !== pageId);
+      const next = remaining.find(p => p.is_home) || remaining[0];
+      if (next) await switchPage(next.id);
+    }
+    await refreshPages();
+  }
+
+  async function duplicatePage(pageId: string) {
+    const { data } = await supabase.from("pages").select("*").eq("id", pageId).single();
+    if (!data) return;
+    let base = slugify(`${data.name}-copy`);
+    let candidate = base; let n = 2;
+    const slugs = new Set(pages.map(p => p.slug));
+    while (slugs.has(candidate)) candidate = `${base}-${n++}`;
+    const order_index = (pages.reduce((m, p) => Math.max(m, p.order_index), -1)) + 1;
+    await supabase.from("pages").insert({
+      project_id: id, name: `${data.name} (copy)`, slug: candidate,
+      html: data.html, css: data.css, grapesjson: data.grapesjson,
+      figma_design_reference_url: data.figma_design_reference_url,
+      figma_metadata: data.figma_metadata,
+      order_index, is_home: false, status: "ready",
+    });
+    await refreshPages();
+  }
+
+  async function createBlankPage(name: string) {
+    let base = slugify(name);
+    let candidate = base; let n = 2;
+    const slugs = new Set(pages.map(p => p.slug));
+    while (slugs.has(candidate)) candidate = `${base}-${n++}`;
+    const order_index = (pages.reduce((m, p) => Math.max(m, p.order_index), -1)) + 1;
+    const { data, error } = await supabase.from("pages").insert({
+      project_id: id, name, slug: candidate, html: BLANK_CANVAS, css: "",
+      order_index, is_home: pages.length === 0, status: "ready",
+    }).select("id").single();
+    if (error || !data) return toast.error(error?.message || "Couldn't create page");
+    await refreshPages();
+    setNewPageOpen(false);
+    await switchPage(data.id);
+  }
+
+  function addBlock(b: BlockDef) {
+    const ed = editorRef.current; if (!ed) return;
+    ed.addComponents(b.content);
+    toast.success(`Added ${b.label}`);
   }
 
   function setDevice(d: "Desktop" | "Mobile") {
@@ -150,12 +272,9 @@ function EditorPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-65px)] relative" style={{ background: "#0a0a0a" }}>
-      {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b" style={{ background: "#0a0a0a", borderColor: "#1e1e1e" }}>
         <div className="flex items-center gap-3">
-          <Link to="/dashboard" className="text-white hover:text-[var(--accent)]">
-            <ArrowLeft size={16} />
-          </Link>
+          <Link to="/dashboard" className="text-white hover:text-[var(--accent)]"><ArrowLeft size={16} /></Link>
           <div>
             <div className="font-display uppercase tracking-widest" style={{ fontSize: 10, color: "#555" }}>Editor</div>
             <div className="font-display font-bold uppercase truncate max-w-[220px]" style={{ fontSize: 14, color: "#fff", letterSpacing: "0.05em" }}>{name || "untitled"}</div>
@@ -170,19 +289,14 @@ function EditorPage() {
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
-              <button
-                onClick={() => setFigmaPanelOpen(o => !o)}
-                title="Show original Figma design"
-                className="p-2"
-                style={{ color: figmaPanelOpen ? "#c8f000" : "#fff" }}
-              >
+              <button onClick={() => setFigmaPanelOpen(o => !o)} title="Show original Figma design" className="p-2" style={{ color: figmaPanelOpen ? "#c8f000" : "#fff" }}>
                 <Figma size={16} />
               </button>
             </>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={save} disabled={saving}
+          <button onClick={() => saveActivePage(true)} disabled={saving}
             className="font-display uppercase tracking-widest flex items-center gap-2 px-3 py-2 text-xs border"
             style={{ background: "#111", borderColor: "#2a2a2a", color: "#fff" }}>
             <Save size={13} /> {saving ? "Saving…" : "Save Draft"}
@@ -195,12 +309,11 @@ function EditorPage() {
         </div>
       </div>
 
-      {/* Body: left panel | canvas | right panel */}
       <div className="flex-1 min-h-0 flex">
-        {/* LEFT PANEL */}
         <aside className="flex flex-col" style={{ width: 240, background: "#111", borderRight: "1px solid #1e1e1e" }}>
           <div className="flex" style={{ borderBottom: "1px solid #1e1e1e" }}>
             {([
+              { k: "pages", label: "Pages", icon: PageIcon },
               { k: "blocks", label: "Blocks", icon: Layout },
               { k: "layers", label: "Layers", icon: Layers },
               { k: "seo", label: "SEO+AEO", icon: Globe },
@@ -209,11 +322,7 @@ function EditorPage() {
               return (
                 <button key={t.k} onClick={() => setLeftTab(t.k)}
                   className="flex-1 py-3 font-display uppercase tracking-widest text-[10px] flex items-center justify-center gap-1 transition-colors"
-                  style={{
-                    color: active ? "#c8f000" : "#555",
-                    borderBottom: `2px solid ${active ? "#c8f000" : "transparent"}`,
-                    background: active ? "#161616" : "transparent",
-                  }}>
+                  style={{ color: active ? "#c8f000" : "#555", borderBottom: `2px solid ${active ? "#c8f000" : "transparent"}`, background: active ? "#161616" : "transparent" }}>
                   <t.icon size={11} /> {t.label}
                 </button>
               );
@@ -221,6 +330,18 @@ function EditorPage() {
           </div>
 
           <div className="flex-1 overflow-auto">
+            {leftTab === "pages" && (
+              <PagesPanel
+                pages={pages}
+                activePageId={activePageId}
+                onSwitch={switchPage}
+                onSetHome={setHome}
+                onRename={renamePage}
+                onDelete={deletePage}
+                onDuplicate={duplicatePage}
+                onNew={() => setNewPageOpen(true)}
+              />
+            )}
             {leftTab === "blocks" && <BlocksPanel onAdd={addBlock} />}
             {leftTab === "layers" && (
               <div className="p-2">
@@ -232,10 +353,8 @@ function EditorPage() {
           </div>
         </aside>
 
-        {/* CANVAS */}
         <div className="flex-1 min-w-0 relative" style={{ background: "#0a0a0a" }}>
           <div ref={ref} style={{ height: "100%" }} />
-          {/* Floating chat button — inside canvas wrapper */}
           <button
             onClick={() => setChatOpen(true)}
             className="absolute bottom-6 right-6 flex items-center justify-center shadow-xl z-30 transition-transform hover:scale-105"
@@ -247,7 +366,6 @@ function EditorPage() {
           <div id="hidden-blocks" style={{ display: "none" }} />
         </div>
 
-        {/* FIGMA REFERENCE PANEL */}
         {figmaRef && figmaPanelOpen && (
           <aside className="flex flex-col" style={{ width: "30vw", minWidth: 280, background: "#0d0d0d", borderLeft: "1px solid #1e1e1e" }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #1e1e1e" }}>
@@ -262,7 +380,6 @@ function EditorPage() {
           </aside>
         )}
 
-        {/* RIGHT PANEL */}
         <aside className="flex flex-col" style={{ width: 280, background: "#111", borderLeft: "1px solid #1e1e1e" }}>
           <div className="px-4 py-3 font-display uppercase tracking-widest text-[10px]" style={{ color: "#555", borderBottom: "1px solid #1e1e1e" }}>
             Style Manager
@@ -277,7 +394,151 @@ function EditorPage() {
       </div>
 
       <ChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} projectId={id} figmaReference={figmaRef} />
-      <PublishModal open={publishOpen} onClose={() => setPublishOpen(false)} projectId={id} onSave={save} />
+      <PublishModal open={publishOpen} onClose={() => setPublishOpen(false)} projectId={id} onSave={() => saveActivePage(true)} />
+
+      {newPageOpen && (
+        <NewPageModal
+          onClose={() => setNewPageOpen(false)}
+          onCreateBlank={createBlankPage}
+          onAddFromFigma={() => nav({ to: "/upload", search: {} })}
+        />
+      )}
+    </div>
+  );
+}
+
+function PagesPanel({
+  pages, activePageId, onSwitch, onSetHome, onRename, onDelete, onDuplicate, onNew,
+}: {
+  pages: PageRow[];
+  activePageId: string | null;
+  onSwitch: (id: string) => void;
+  onSetHome: (id: string) => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onNew: () => void;
+}) {
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  return (
+    <div className="p-2 flex flex-col h-full">
+      <div className="font-display uppercase tracking-widest text-[10px] px-2 py-2" style={{ color: "#555" }}>
+        {pages.length} page{pages.length === 1 ? "" : "s"}
+      </div>
+      <div className="space-y-1 flex-1 overflow-auto">
+        {pages.map(p => {
+          const active = p.id === activePageId;
+          return (
+            <div key={p.id} className="relative">
+              <button
+                onClick={() => onSwitch(p.id)}
+                className="w-full text-left flex items-center gap-2 p-2 rounded transition-colors"
+                style={{
+                  background: active ? "rgba(200,240,0,0.10)" : "transparent",
+                  border: `1px solid ${active ? "#c8f000" : "transparent"}`,
+                }}
+              >
+                <PageIcon size={12} style={{ color: active ? "#c8f000" : "#666", flexShrink: 0 }} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs truncate text-white">{p.name}</div>
+                  <div className="text-[9px] text-[#555] truncate">/{p.slug}</div>
+                </div>
+                {p.is_home && (
+                  <Home size={10} style={{ color: "#c8f000", flexShrink: 0 }} />
+                )}
+                {p.status === "building" && (
+                  <span className="text-[9px] font-display uppercase" style={{ color: "#c8f000" }}>Building…</span>
+                )}
+                {p.status === "failed" && (
+                  <span className="text-[9px] font-display uppercase" style={{ color: "#ff6b6b" }}>Failed</span>
+                )}
+                <button
+                  onClick={e => { e.stopPropagation(); setMenuFor(menuFor === p.id ? null : p.id); }}
+                  className="p-1 text-[#555] hover:text-white"
+                >
+                  <MoreVertical size={12} />
+                </button>
+              </button>
+              {menuFor === p.id && (
+                <div className="absolute right-0 top-full mt-1 z-20 rounded shadow-xl"
+                  style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", minWidth: 140 }}
+                  onMouseLeave={() => setMenuFor(null)}>
+                  {[
+                    { label: "Rename", fn: () => { onRename(p.id, p.name); setMenuFor(null); } },
+                    { label: "Set as home", fn: () => { onSetHome(p.id); setMenuFor(null); }, hide: p.is_home },
+                    { label: "Duplicate", fn: () => { onDuplicate(p.id); setMenuFor(null); } },
+                    { label: "Delete", fn: () => { onDelete(p.id); setMenuFor(null); }, danger: true },
+                  ].filter(i => !i.hide).map(item => (
+                    <button key={item.label} onClick={item.fn}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-[#161616]"
+                      style={{ color: item.danger ? "#ff6b6b" : "#fff" }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={onNew}
+        className="mt-2 w-full py-2 font-display uppercase tracking-widest text-[10px] flex items-center justify-center gap-2"
+        style={{ background: "#c8f000", color: "#0a0a0a", fontWeight: 800, borderRadius: 4 }}>
+        <Plus size={12} /> New page
+      </button>
+    </div>
+  );
+}
+
+function NewPageModal({
+  onClose, onCreateBlank, onAddFromFigma,
+}: {
+  onClose: () => void;
+  onCreateBlank: (name: string) => void;
+  onAddFromFigma: () => void;
+}) {
+  const [tab, setTab] = useState<"figma" | "blank">("blank");
+  const [name, setName] = useState("New page");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(10,10,10,0.85)" }}>
+      <div className="w-full max-w-md mx-4 rounded p-6" style={{ background: "#111", border: "1px solid #2a2a2a" }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-display uppercase">New page</h3>
+          <button onClick={onClose} className="text-[#555] hover:text-white"><X size={16} /></button>
+        </div>
+        <div className="flex mb-4" style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", borderRadius: 4 }}>
+          {(["blank", "figma"] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} className="flex-1 py-2 font-display uppercase tracking-widest text-[10px]"
+              style={{ background: tab === t ? "#c8f000" : "transparent", color: tab === t ? "#0a0a0a" : "#555", fontWeight: tab === t ? 800 : 700 }}>
+              {t === "blank" ? "Blank page" : "From Figma"}
+            </button>
+          ))}
+        </div>
+        {tab === "blank" ? (
+          <>
+            <label className="font-display uppercase tracking-widest text-[10px] text-[#888] block mb-1">Page name</label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              className="w-full mb-4" autoFocus
+              style={{ background: "#161616", border: "1px solid #2a2a2a", color: "#fff", padding: "8px 10px", fontSize: 12, borderRadius: 4, outline: "none" }} />
+            <button onClick={() => name.trim() && onCreateBlank(name.trim())}
+              className="w-full py-2 font-display uppercase tracking-widest text-[10px]"
+              style={{ background: "#c8f000", color: "#0a0a0a", fontWeight: 800, borderRadius: 4 }}>
+              Create blank page
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-[#888] mb-4">
+              Pick more pages from your Figma file. You'll go to the import screen — convert there, then they'll appear in this project.
+            </p>
+            <button onClick={onAddFromFigma}
+              className="w-full py-2 font-display uppercase tracking-widest text-[10px]"
+              style={{ background: "#c8f000", color: "#0a0a0a", fontWeight: 800, borderRadius: 4 }}>
+              Open Figma importer
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -286,11 +547,7 @@ function DeviceBtn({ active, onClick, icon, label }: { active: boolean; onClick:
   return (
     <button onClick={onClick}
       className="font-display uppercase tracking-widest flex items-center gap-1.5 px-2 py-1.5 text-[10px] border"
-      style={{
-        borderColor: active ? "#c8f000" : "#2a2a2a",
-        color: active ? "#c8f000" : "#555",
-        background: "transparent",
-      }}>
+      style={{ borderColor: active ? "#c8f000" : "#2a2a2a", color: active ? "#c8f000" : "#555", background: "transparent" }}>
       {icon} {label}
     </button>
   );
@@ -365,8 +622,6 @@ function SeoPanel({ seo, setSeo, sub, setSub }: { seo: any; setSeo: (fn: any) =>
   const update = (k: string, v: any) => setSeo((s: any) => ({ ...s, [k]: v }));
   const titleLen = (seo.title || "").length;
   const descLen = (seo.description || "").length;
-
-  // Crude SEO score
   const seoScore = useMemo(() => {
     let s = 0;
     if (titleLen > 0 && titleLen <= 60) s += 25;
@@ -377,7 +632,6 @@ function SeoPanel({ seo, setSeo, sub, setSub }: { seo: any; setSeo: (fn: any) =>
     if (seo.robots) s += 10;
     return s;
   }, [seo, titleLen, descLen]);
-
   const aeoScore = useMemo(() => {
     let s = 0;
     if (seo.bizName) s += 20;
@@ -389,25 +643,18 @@ function SeoPanel({ seo, setSeo, sub, setSub }: { seo: any; setSeo: (fn: any) =>
     if (seo.faqs?.some((f: any) => f.q && f.a)) s += 20;
     return s;
   }, [seo]);
-
   return (
     <div className="p-3">
       <div className="flex mb-3" style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", borderRadius: 4 }}>
         {(["seo", "aeo"] as const).map(t => (
           <button key={t} onClick={() => setSub(t)}
             className="flex-1 py-2 font-display uppercase tracking-widest text-[10px]"
-            style={{
-              background: sub === t ? "#c8f000" : "transparent",
-              color: sub === t ? "#0a0a0a" : "#555",
-              fontWeight: sub === t ? 800 : 700,
-            }}>
+            style={{ background: sub === t ? "#c8f000" : "transparent", color: sub === t ? "#0a0a0a" : "#555", fontWeight: sub === t ? 800 : 700 }}>
             {t === "seo" ? "SEO" : "AEO/Schema"}
           </button>
         ))}
       </div>
-
       <div className="flex justify-center mb-4"><ScoreGauge score={sub === "seo" ? seoScore : aeoScore} /></div>
-
       {sub === "seo" ? (
         <div className="space-y-3">
           <div>
@@ -432,7 +679,7 @@ function SeoPanel({ seo, setSeo, sub, setSub }: { seo: any; setSeo: (fn: any) =>
           </div>
           <button className="w-full mt-2 py-2 font-display uppercase tracking-widest text-[10px] flex items-center justify-center gap-2"
             style={{ background: "#c8f000", color: "#0a0a0a", fontWeight: 800, borderRadius: 4 }}
-            onClick={() => toast("AI fix coming soon — using your assistant for now")}>
+            onClick={() => toast("AI fix coming soon")}>
             <Sparkles size={12} /> AI Fix SEO
           </button>
         </div>
@@ -450,7 +697,6 @@ function SeoPanel({ seo, setSeo, sub, setSub }: { seo: any; setSeo: (fn: any) =>
           <div><FieldLabel>Phone</FieldLabel><input style={inputStyle} value={seo.phone || ""} onChange={e => update("phone", e.target.value)} /></div>
           <div><FieldLabel>Address</FieldLabel><input style={inputStyle} value={seo.address || ""} onChange={e => update("address", e.target.value)} /></div>
           <div><FieldLabel>Social Profile Links (one per line)</FieldLabel><textarea style={{ ...inputStyle, minHeight: 50 }} value={seo.socials || ""} onChange={e => update("socials", e.target.value)} /></div>
-
           <div>
             <FieldLabel>FAQ Pairs</FieldLabel>
             <div className="space-y-2">

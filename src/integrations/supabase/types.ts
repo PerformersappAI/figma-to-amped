@@ -142,6 +142,74 @@ export type Database = {
         }
         Relationships: []
       }
+      pages: {
+        Row: {
+          created_at: string
+          css: string | null
+          error_message: string | null
+          figma_design_reference_url: string | null
+          figma_metadata: Json | null
+          figma_node_id: string | null
+          grapesjson: Json | null
+          html: string | null
+          id: string
+          is_home: boolean
+          name: string
+          order_index: number
+          project_id: string
+          slug: string
+          status: string
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          css?: string | null
+          error_message?: string | null
+          figma_design_reference_url?: string | null
+          figma_metadata?: Json | null
+          figma_node_id?: string | null
+          grapesjson?: Json | null
+          html?: string | null
+          id?: string
+          is_home?: boolean
+          name?: string
+          order_index?: number
+          project_id: string
+          slug: string
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          css?: string | null
+          error_message?: string | null
+          figma_design_reference_url?: string | null
+          figma_metadata?: Json | null
+          figma_node_id?: string | null
+          grapesjson?: Json | null
+          html?: string | null
+          id?: string
+          is_home?: boolean
+          name?: string
+          order_index?: number
+          project_id?: string
+          slug?: string
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company: string | null
