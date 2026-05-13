@@ -142,110 +142,154 @@ export async function convertFigmaFrame(opts: {
 }): Promise<ConvertedFrame> {
   const { accessToken, fileKey, nodeId, userId, projectId = null } = opts;
 
-  const nodeRes = await fetch(
-    `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!nodeRes.ok) throw new Error("Couldn't load frame from Figma.");
-  const nodeData = (await nodeRes.json()) as any;
-  const frameNode = nodeData?.nodes?.[nodeId]?.document;
-  if (!frameNode) throw new Error("Frame not found in Figma file.");
+  // ── Phase 1: fetch Figma frame node ─────────────────────────────────────
+  let frameNode: any;
+  try {
+    const nodeRes = await tfetch(
+      `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 25_000 }
+    );
+    if (!nodeRes.ok) {
+      throw new ConvertPhaseError("figma_node_fetch", `Figma returned ${nodeRes.status}`);
+    }
+    const nodeData = (await nodeRes.json()) as any;
+    frameNode = nodeData?.nodes?.[nodeId]?.document;
+    if (!frameNode) throw new ConvertPhaseError("figma_node_fetch", "Frame not found in file");
+  } catch (e: any) {
+    if (e instanceof ConvertPhaseError) throw e;
+    throw new ConvertPhaseError("figma_node_fetch", e?.message || "Unknown error", { cause: e });
+  }
 
-  // Images
-  const imageRefs = Array.from(collectImageRefs(frameNode));
+  // ── Phase 2: download bitmap images ────────────────────────────────────
   const imageMap: Record<string, string> = {};
-  if (imageRefs.length > 0) {
-    const imgsRes = await fetch(`https://api.figma.com/v1/files/${fileKey}/images`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (imgsRes.ok) {
-      const imgData = (await imgsRes.json()) as any;
-      const meta: Record<string, string> = imgData?.meta?.images || {};
-      const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
-      await Promise.all(imageRefs.map(async (ref) => {
-        const url = meta[ref];
-        if (!url) return;
-        const stored = await downloadAndStore(url, `figma/${userId}/${fileKey}/${slug}/${ref}.png`);
-        if (stored) imageMap[ref] = stored;
-      }));
+  try {
+    const imageRefs = Array.from(collectImageRefs(frameNode));
+    if (imageRefs.length > 0) {
+      const imgsRes = await tfetch(`https://api.figma.com/v1/files/${fileKey}/images`, {
+        headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 20_000,
+      });
+      if (imgsRes.ok) {
+        const imgData = (await imgsRes.json()) as any;
+        const meta: Record<string, string> = imgData?.meta?.images || {};
+        const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
+        await Promise.all(imageRefs.map(async (ref) => {
+          const url = meta[ref];
+          if (!url) return;
+          const stored = await downloadAndStore(url, `figma/${userId}/${fileKey}/${slug}/${ref}.png`);
+          if (stored) imageMap[ref] = stored;
+        }));
+      }
     }
+  } catch (e: any) {
+    console.error("[images phase] non-fatal:", e?.message || e);
+    // images are non-fatal — keep going with whatever we got
   }
 
-  // Reference screenshot
+  // ── Phase 3: reference screenshot (non-fatal) ──────────────────────────
   let designReference: string | null = null;
-  const refRes = await fetch(
-    `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (refRes.ok) {
-    const refData = (await refRes.json()) as any;
-    const refUrl = refData?.images?.[nodeId];
-    if (refUrl) {
-      const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
-      designReference = await downloadAndStore(refUrl, `figma/${userId}/${fileKey}/${slug}/_reference.png`);
+  try {
+    const refRes = await tfetch(
+      `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 20_000 }
+    );
+    if (refRes.ok) {
+      const refData = (await refRes.json()) as any;
+      const refUrl = refData?.images?.[nodeId];
+      if (refUrl) {
+        const slug = nodeId.replace(/[^a-zA-Z0-9]/g, "_");
+        designReference = await downloadAndStore(refUrl, `figma/${userId}/${fileKey}/${slug}/_reference.png`);
+      }
     }
+  } catch (e: any) {
+    console.error("[reference phase] non-fatal:", e?.message || e);
   }
 
-  // Vectors
-  const vectorIds = collectVectorNodeIds(frameNode);
+  // ── Phase 4: vector SVG fetch (non-fatal per chunk) ────────────────────
   const vectorSvgMap: Record<string, string> = {};
-  if (vectorIds.length > 0) {
-    const vecPath = (id: string) => `figma/${userId}/${fileKey}/vectors/${id.replace(/[^a-zA-Z0-9]/g, "_")}.svg`;
-    const missing: string[] = [];
-    await Promise.all(vectorIds.map(async (id) => {
-      try {
-        const { data } = await supabaseAdmin.storage.from("project-assets").download(vecPath(id));
-        if (data) vectorSvgMap[id] = await data.text();
-        else missing.push(id);
-      } catch { missing.push(id); }
-    }));
-    for (let i = 0; i < missing.length; i += 100) {
-      const chunk = missing.slice(i, i + 100);
-      const r = await fetch(
-        `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(chunk.join(","))}&format=svg&svg_simplify_stroke=true`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      if (!r.ok) { console.error("figma svg fetch", r.status); continue; }
-      const d = (await r.json()) as any;
-      const urls: Record<string, string | null> = d.images || {};
-      await Promise.all(chunk.map(async (id) => {
-        const u = urls[id]; if (!u) return;
+  try {
+    const vectorIds = collectVectorNodeIds(frameNode);
+    if (vectorIds.length > 0) {
+      const vecPath = (id: string) => `figma/${userId}/${fileKey}/vectors/${id.replace(/[^a-zA-Z0-9]/g, "_")}.svg`;
+      const missing: string[] = [];
+      await Promise.all(vectorIds.map(async (id) => {
         try {
-          const sr = await fetch(u); if (!sr.ok) return;
-          const cleaned = sanitizeSvg(await sr.text()); if (!cleaned) return;
-          vectorSvgMap[id] = cleaned;
-          await supabaseAdmin.storage.from("project-assets").upload(
-            vecPath(id), new TextEncoder().encode(cleaned),
-            { contentType: "image/svg+xml", upsert: true },
-          );
-        } catch (e) { console.error("svg dl/store", id, e); }
+          const { data } = await supabaseAdmin.storage.from("project-assets").download(vecPath(id));
+          if (data) vectorSvgMap[id] = await data.text();
+          else missing.push(id);
+        } catch { missing.push(id); }
       }));
+      for (let i = 0; i < missing.length; i += 100) {
+        const chunk = missing.slice(i, i + 100);
+        try {
+          const r = await tfetch(
+            `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(chunk.join(","))}&format=svg&svg_simplify_stroke=true`,
+            { headers: { Authorization: `Bearer ${accessToken}` }, timeoutMs: 25_000 }
+          );
+          if (!r.ok) { console.error("figma svg fetch", r.status); continue; }
+          const d = (await r.json()) as any;
+          const urls: Record<string, string | null> = d.images || {};
+          await Promise.all(chunk.map(async (id) => {
+            const u = urls[id]; if (!u) return;
+            try {
+              const sr = await tfetch(u, { timeoutMs: 15_000 });
+              if (!sr.ok) return;
+              const cleaned = sanitizeSvg(await sr.text());
+              if (!cleaned) return;
+              vectorSvgMap[id] = cleaned;
+              await supabaseAdmin.storage.from("project-assets").upload(
+                vecPath(id), new TextEncoder().encode(cleaned),
+                { contentType: "image/svg+xml", upsert: true },
+              );
+            } catch (e: any) { console.error("svg dl/store", id, e?.message || e); }
+          }));
+        } catch (e: any) {
+          console.error("[vectors chunk] non-fatal:", e?.message || e);
+        }
+      }
     }
+  } catch (e: any) {
+    console.error("[vectors phase] non-fatal:", e?.message || e);
   }
 
-  let { html, css } = convertFrame(frameNode, imageMap, vectorSvgMap);
+  // ── Phase 5: deterministic HTML/CSS conversion ─────────────────────────
+  let html: string;
+  let css: string;
+  try {
+    const out = convertFrame(frameNode, imageMap, vectorSvgMap);
+    html = out.html;
+    css = out.css;
+  } catch (e: any) {
+    throw new ConvertPhaseError("html_conversion", e?.message || "convertFrame threw", { cause: e });
+  }
+
+  // ── Phase 6: Claude cleanup (non-fatal — fall back to deterministic HTML)
   let usedClaude = false;
   let cost = 0;
   let usage: { input_tokens: number; output_tokens: number } | undefined;
-
   if (html.length >= 2000) {
     const cleaned = await claudeCleanup(html, css);
-    if (cleaned) {
+    if ("skipped" in cleaned) {
+      console.warn("[claude cleanup skipped]", cleaned.reason);
+    } else {
       html = cleaned.html;
       css = cleaned.css;
       usedClaude = true;
       usage = cleaned.usage;
       cost = calcCost(cleaned.usage);
-      await supabaseAdmin.from("ai_usage_log").insert({
-        user_id: userId,
-        project_id: projectId,
-        operation: "figma_convert_cleanup",
-        model: "claude-sonnet-4-5",
-        input_tokens: cleaned.usage?.input_tokens ?? null,
-        output_tokens: cleaned.usage?.output_tokens ?? null,
-        cost_usd: cost,
-        metadata: { fileKey, nodeId, frameName: frameNode.name },
-      });
+      try {
+        await supabaseAdmin.from("ai_usage_log").insert({
+          user_id: userId,
+          project_id: projectId,
+          operation: "figma_convert_cleanup",
+          model: "claude-sonnet-4-5",
+          input_tokens: cleaned.usage?.input_tokens ?? null,
+          output_tokens: cleaned.usage?.output_tokens ?? null,
+          cost_usd: cost,
+          metadata: { fileKey, nodeId, frameName: frameNode.name },
+        });
+      } catch (e: any) {
+        console.error("ai_usage_log insert failed", e?.message || e);
+      }
     }
   }
 
