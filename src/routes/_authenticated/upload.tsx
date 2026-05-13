@@ -263,7 +263,7 @@ function UploadPage() {
       <ProgressBar current={0} />
       <h1 className="text-4xl mt-1 mb-2">Import your design</h1>
       <p className="text-muted-foreground mb-8">
-        Connect Figma and paste a file URL, or drop a site export ZIP.
+        Connect Figma and paste a file URL to import your design.
       </p>
 
       {/* Figma section */}
