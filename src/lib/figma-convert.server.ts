@@ -52,31 +52,46 @@ async function downloadAndStore(url: string, path: string, contentType = "image/
 
 const CLAUDE_CLEANUP_PROMPT = `Here is auto-generated HTML and CSS from a Figma frame. Clean it up: (1) replace divs with semantic tags where appropriate (header, nav, main, section, footer, article), (2) consolidate redundant CSS rules, (3) add meaningful aria-labels and alt attributes, (4) simplify deeply nested wrappers if they have no semantic purpose. Preserve the visual output exactly — do not change layout, spacing, colors, or content. CRITICAL: When you encounter <span class="figma-vector"> elements containing inline SVG, do NOT modify the SVG markup in any way. You may rename the wrapping element to a more semantic tag (e.g. <i class="icon">) or change its class names, but the inner <svg>...</svg> markup must be preserved verbatim — every attribute, path, and child element. Return ONLY a JSON object of shape {"html":"...","css":"..."} with no markdown fences and no explanation.`;
 
-async function claudeCleanup(html: string, css: string) {
+async function claudeCleanup(html: string, css: string): Promise<{ html: string; css: string; usage?: { input_tokens: number; output_tokens: number } } | { skipped: true; reason: string }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8000,
-      system: CLAUDE_CLEANUP_PROMPT,
-      messages: [{ role: "user", content: `HTML:\n\n${html}\n\nCSS:\n\n${css}` }],
-    }),
-  });
-  if (!r.ok) { console.error("claude cleanup failed", r.status, await r.text().catch(() => "")); return null; }
-  const data = (await r.json()) as any;
+  if (!apiKey) return { skipped: true, reason: "no_api_key" };
+  let r: Response;
+  try {
+    r = await tfetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 8000,
+        system: CLAUDE_CLEANUP_PROMPT,
+        messages: [{ role: "user", content: `HTML:\n\n${html}\n\nCSS:\n\n${css}` }],
+      }),
+      timeoutMs: 45_000,
+    });
+  } catch (e: any) {
+    console.error("claude cleanup network error", e?.message || e);
+    return { skipped: true, reason: `network: ${e?.message || "unknown"}` };
+  }
+  if (!r.ok) {
+    const body = await r.text().catch(() => "");
+    console.error("claude cleanup http", r.status, body.slice(0, 500));
+    // 401/403 = bad key, 429 = rate limit, 402 = no credit — surface but don't fail the whole convert
+    return { skipped: true, reason: `http_${r.status}` };
+  }
+  const data = (await r.json().catch(() => null)) as any;
   const text: string = data?.content?.[0]?.text || "";
   try {
     const m = text.match(/\{[\s\S]*\}/);
-    if (!m) return null;
+    if (!m) return { skipped: true, reason: "no_json_in_response" };
     const parsed = JSON.parse(m[0]);
     if (typeof parsed.html === "string" && typeof parsed.css === "string") {
-      return { html: parsed.html, css: parsed.css, usage: data.usage as { input_tokens: number; output_tokens: number } | undefined };
+      return { html: parsed.html, css: parsed.css, usage: data.usage };
     }
-  } catch (e) { console.error("claude parse failed", e); }
-  return null;
+    return { skipped: true, reason: "missing_html_or_css" };
+  } catch (e: any) {
+    console.error("claude parse failed", e?.message || e);
+    return { skipped: true, reason: "parse_error" };
+  }
 }
 
 function calcCost(usage?: { input_tokens: number; output_tokens: number }) {
