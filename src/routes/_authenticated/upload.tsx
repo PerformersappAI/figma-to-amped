@@ -84,7 +84,15 @@ function UploadPage() {
   const [filter, setFilter] = useState<DeviceFilter>("all");
 
   // Batch build state
-  type PageRow = { id: string; name: string; status: string; figma_node_id: string; thumbnail?: string | null; error_message?: string | null };
+  type PageRow = {
+    id: string;
+    name: string;
+    status: string;
+    figma_node_id: string;
+    thumbnail?: string | null;
+    error_message?: string | null;
+    last_completed_step?: string | null;
+  };
   const [batch, setBatch] = useState<{ projectId: string; rows: PageRow[]; thumbs: Record<string, string | null> } | null>(null);
   const [starting, setStarting] = useState(false);
 
@@ -121,7 +129,14 @@ function UploadPage() {
             const next = (payload.new || payload.old) as any;
             if (!next?.id) return prev;
             const idx = prev.rows.findIndex(r => r.id === next.id);
-            const updated = { id: next.id, name: next.name, status: next.status, figma_node_id: next.figma_node_id, error_message: next.error_message };
+            const updated = {
+              id: next.id,
+              name: next.name,
+              status: next.status,
+              figma_node_id: next.figma_node_id,
+              error_message: next.error_message,
+              last_completed_step: next.figma_metadata?.last_completed_step ?? null,
+            };
             const rows = idx >= 0
               ? prev.rows.map((r, i) => i === idx ? { ...r, ...updated } : r)
               : [...prev.rows, updated];
@@ -201,6 +216,54 @@ function UploadPage() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 60) || "page";
+  }
+
+  async function postStep(path: string, payload: Record<string, unknown>) {
+    if (!session) throw new Error("You need to sign in again.");
+    let response: Response;
+    try {
+      response = await fetch(path, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (netErr: any) {
+      throw new Error(`Network error (worker may have timed out): ${netErr?.message || "Failed to fetch"}`);
+    }
+
+    const raw = await response.text();
+    let data: any = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch { /* ignore */ }
+    if (!response.ok) {
+      const phase = data?.phase ? `[${data.phase}] ` : "";
+      throw new Error(`${phase}${data?.error || raw?.slice(0, 200) || `HTTP ${response.status}`}`);
+    }
+    return data;
+  }
+
+  function stepIndexFromRow(row?: { status?: string; last_completed_step?: string | null }) {
+    const last = row?.last_completed_step;
+    if (row?.status === "ready" || last === "ready") return 4;
+    if (row?.status === "rendered" || last === "rendered") return 3;
+    if (row?.status === "assets-ready" || last === "assets-ready") return 2;
+    if (row?.status === "fetched" || last === "fetched") return 1;
+    return 0;
+  }
+
+  async function runPagePipeline(pageId: string, nodeId: string, projectId: string, startStep = 0) {
+    if (!figmaResult?.fileKey) throw new Error("Missing Figma file key");
+    if (startStep < 1) {
+      await postStep("/api/figma/fetch-node", { fileKey: figmaResult.fileKey, pageId, nodeId, projectId });
+    }
+    if (startStep < 2) {
+      await postStep("/api/figma/process-assets", { fileKey: figmaResult.fileKey, pageId, nodeId, projectId });
+    }
+    if (startStep < 3) {
+      await postStep("/api/figma/render", { pageId, projectId });
+    }
+    if (startStep < 4) {
+      await postStep("/api/figma/cleanup", { pageId, projectId, fileKey: figmaResult.fileKey });
+    }
   }
 
   // Client-driven batch: pre-create project + all page rows, then convert each page in
