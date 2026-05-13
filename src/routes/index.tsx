@@ -10,7 +10,7 @@ function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between px-6 py-5 border-b border-border">
         <div className="font-display text-2xl tracking-wider">
-          FIGMA<span style={{ color: "var(--accent)" }}>SHIP</span>
+          AMPED <span className="text-muted-foreground">—</span> FIGMA<span style={{ color: "var(--accent)" }}>SHIP</span>
         </div>
         <nav className="flex items-center gap-3">
           <Link to="/login" className="btn-ghost text-sm">Sign in</Link>
@@ -28,7 +28,7 @@ function Landing() {
             <span style={{ color: "var(--accent)" }}>website. Today.</span>
           </h1>
           <p className="max-w-xl mx-auto mt-8 text-lg text-muted-foreground">
-            Drop your Builder.io export. Edit it visually. Talk to an AI design assistant.
+            Drop your site design export. Edit it visually. Talk to an AI design assistant.
             Publish a shareable preview in minutes — no developer required.
           </p>
           <div className="flex items-center justify-center gap-3 mt-10">
@@ -55,7 +55,7 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border px-6 py-6 text-center text-xs text-muted-foreground font-display uppercase tracking-widest">
-        FigmaShip · A Premium Tool by Amped
+        Amped — FigmaShip · A Premium Tool by Amped
       </footer>
     </div>
   );
