@@ -185,7 +185,7 @@ function UploadPage() {
   const handleFile = useCallback(async (file: File) => {
     if (!user) return;
     if (!file.name.toLowerCase().endsWith(".zip")) {
-      return toast.error("Please drop a .zip file from Builder.io Visual Copilot.");
+      return toast.error("Please drop a .zip file containing your site export.");
     }
     setBusy(true); setProgress(2); setLabel("Creating project…");
     try {
