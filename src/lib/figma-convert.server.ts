@@ -2,6 +2,29 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { convertFrame, collectImageRefs, collectVectorNodeIds } from "@/lib/figma-convert";
 
+// Phase-tagged error so callers know exactly which step blew up.
+export class ConvertPhaseError extends Error {
+  phase: string;
+  constructor(phase: string, message: string, opts?: { cause?: unknown }) {
+    super(`[${phase}] ${message}`);
+    this.phase = phase;
+    if (opts?.cause) (this as any).cause = opts.cause;
+  }
+}
+
+// Bounded fetch — Cloudflare Workers do NOT honor the default fetch timeout
+// reliably, so we attach an AbortController to every outbound call.
+async function tfetch(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
+  const { timeoutMs = 20_000, ...rest } = init;
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+  try {
+    return await fetch(url, { ...rest, signal: ac.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 function sanitizeSvg(svg: string): string {
   let s = svg;
   s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
