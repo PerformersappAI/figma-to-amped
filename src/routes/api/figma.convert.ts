@@ -209,8 +209,72 @@ export const Route = createFileRoute("/api/figma/convert")({
             }
           }
 
-          // 3d — deterministic conversion
-          let { html, css } = convertFrame(frameNode, imageMap);
+          // 3d — fetch + cache vector SVGs (logos, icons, hamburger menu, etc.)
+          const vectorIds = collectVectorNodeIds(frameNode);
+          const vectorSvgMap: Record<string, string> = {};
+          if (vectorIds.length > 0) {
+            const vecPath = (id: string) =>
+              `figma/${userId}/${fileKey}/vectors/${id.replace(/[^a-zA-Z0-9]/g, "_")}.svg`;
+
+            // Cache hit check (downloads from public bucket)
+            const missing: string[] = [];
+            await Promise.all(
+              vectorIds.map(async (id) => {
+                try {
+                  const { data } = await supabaseAdmin.storage
+                    .from("project-assets")
+                    .download(vecPath(id));
+                  if (data) {
+                    vectorSvgMap[id] = await data.text();
+                  } else {
+                    missing.push(id);
+                  }
+                } catch {
+                  missing.push(id);
+                }
+              })
+            );
+
+            // Batch fetch from Figma in chunks of 100
+            for (let i = 0; i < missing.length; i += 100) {
+              const chunk = missing.slice(i, i + 100);
+              const r = await fetch(
+                `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(chunk.join(","))}&format=svg&svg_simplify_stroke=true`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              );
+              if (!r.ok) {
+                console.error("figma svg fetch", r.status, await r.text().catch(() => ""));
+                continue;
+              }
+              const d = (await r.json()) as any;
+              const urls: Record<string, string | null> = d.images || {};
+              await Promise.all(
+                chunk.map(async (id) => {
+                  const u = urls[id];
+                  if (!u) return;
+                  try {
+                    const sr = await fetch(u);
+                    if (!sr.ok) return;
+                    const raw = await sr.text();
+                    const cleaned = sanitizeSvg(raw);
+                    if (!cleaned) return;
+                    vectorSvgMap[id] = cleaned;
+                    await supabaseAdmin.storage
+                      .from("project-assets")
+                      .upload(vecPath(id), new TextEncoder().encode(cleaned), {
+                        contentType: "image/svg+xml",
+                        upsert: true,
+                      });
+                  } catch (e) {
+                    console.error("svg download/store", id, e);
+                  }
+                })
+              );
+            }
+          }
+
+          // 3e — deterministic conversion
+          let { html, css } = convertFrame(frameNode, imageMap, vectorSvgMap);
 
           // 3e — Claude cleanup (only if substantial)
           let usedClaude = false;
