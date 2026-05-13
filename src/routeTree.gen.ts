@@ -18,6 +18,7 @@ import { Route as ApiAiDesignChatRouteImport } from './routes/api/ai-design-chat
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as PreviewProjectIdPageSlugRouteImport } from './routes/preview.$projectId.$pageSlug'
 import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
 import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
@@ -71,6 +72,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const PreviewProjectIdPageSlugRoute =
+  PreviewProjectIdPageSlugRouteImport.update({
+    id: '/$pageSlug',
+    path: '/$pageSlug',
+    getParentRoute: () => PreviewProjectIdRoute,
+  } as any)
 const AuthFigmaStartRoute = AuthFigmaStartRouteImport.update({
   id: '/auth/figma/start',
   path: '/auth/figma/start',
@@ -122,13 +129,14 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
-  '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
+  '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
   '/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
 }
@@ -140,13 +148,14 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
-  '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
+  '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
   '/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
 }
@@ -160,13 +169,14 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
-  '/preview/$projectId': typeof PreviewProjectIdRoute
+  '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
+  '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
   '/_authenticated/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/_authenticated/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
 }
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/api/figma/import'
     | '/auth/figma/callback'
     | '/auth/figma/start'
+    | '/preview/$projectId/$pageSlug'
     | '/projects/$id/editor'
     | '/projects/$id/preview'
   fileRoutesByTo: FileRoutesByTo
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/api/figma/import'
     | '/auth/figma/callback'
     | '/auth/figma/start'
+    | '/preview/$projectId/$pageSlug'
     | '/projects/$id/editor'
     | '/projects/$id/preview'
   id:
@@ -224,6 +236,7 @@ export interface FileRouteTypes {
     | '/api/figma/import'
     | '/auth/figma/callback'
     | '/auth/figma/start'
+    | '/preview/$projectId/$pageSlug'
     | '/_authenticated/projects/$id/editor'
     | '/_authenticated/projects/$id/preview'
   fileRoutesById: FileRoutesById
@@ -234,7 +247,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
-  PreviewProjectIdRoute: typeof PreviewProjectIdRoute
+  PreviewProjectIdRoute: typeof PreviewProjectIdRouteWithChildren
   ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
   ApiFigmaConvertBatchRoute: typeof ApiFigmaConvertBatchRoute
   ApiFigmaDisconnectRoute: typeof ApiFigmaDisconnectRoute
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/preview/$projectId/$pageSlug': {
+      id: '/preview/$projectId/$pageSlug'
+      path: '/$pageSlug'
+      fullPath: '/preview/$projectId/$pageSlug'
+      preLoaderRoute: typeof PreviewProjectIdPageSlugRouteImport
+      parentRoute: typeof PreviewProjectIdRoute
     }
     '/auth/figma/start': {
       id: '/auth/figma/start'
@@ -387,13 +407,24 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface PreviewProjectIdRouteChildren {
+  PreviewProjectIdPageSlugRoute: typeof PreviewProjectIdPageSlugRoute
+}
+
+const PreviewProjectIdRouteChildren: PreviewProjectIdRouteChildren = {
+  PreviewProjectIdPageSlugRoute: PreviewProjectIdPageSlugRoute,
+}
+
+const PreviewProjectIdRouteWithChildren =
+  PreviewProjectIdRoute._addFileChildren(PreviewProjectIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
-  PreviewProjectIdRoute: PreviewProjectIdRoute,
+  PreviewProjectIdRoute: PreviewProjectIdRouteWithChildren,
   ApiFigmaConvertRoute: ApiFigmaConvertRoute,
   ApiFigmaConvertBatchRoute: ApiFigmaConvertBatchRoute,
   ApiFigmaDisconnectRoute: ApiFigmaDisconnectRoute,
