@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { convertFigmaFrame, refreshFigmaTokenIfNeeded } from "@/lib/figma-convert.server";
+import { convertFigmaFrame, refreshFigmaTokenIfNeeded, ConvertPhaseError } from "@/lib/figma-convert.server";
 
 function json(body: any, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
