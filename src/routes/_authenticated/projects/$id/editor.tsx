@@ -6,7 +6,7 @@ import {
   Layout, Type, Image as ImageIcon, MousePointerClick, Columns2, Columns3,
   Minus, Video, FormInput, MessageSquareQuote, Megaphone, FileText, Bot,
   HelpCircle, Search, Share2, UserPlus, Lightbulb, Star, BarChart3, Zap,
-  Layers, Globe, Code2, Figma, X, FileText as PageIcon, Home, Plus, MoreVertical,
+  Layers, Globe, Figma, X, FileText as PageIcon, Home, Plus, MoreVertical,
 } from "lucide-react";
 import grapesjs, { Editor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
