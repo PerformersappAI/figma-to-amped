@@ -223,7 +223,7 @@ function UploadPage() {
       <div className="text-xs font-display uppercase tracking-widest text-muted-foreground">Step 1 of 5</div>
       <h1 className="text-4xl mt-1 mb-2">Import your design</h1>
       <p className="text-muted-foreground mb-8">
-        Connect Figma and paste a file URL, or drop a Builder.io ZIP.
+        Connect Figma and paste a file URL, or drop a site export ZIP.
       </p>
 
       {/* Figma section */}
