@@ -22,6 +22,7 @@ import { Route as PreviewProjectIdPageSlugRouteImport } from './routes/preview.$
 import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
 import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
+import { Route as ApiFigmaFetchNodeRouteImport } from './routes/api/figma.fetch-node'
 import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disconnect'
 import { Route as ApiFigmaConvertBatchRouteImport } from './routes/api/figma.convert-batch'
 import { Route as ApiFigmaConvertRouteImport } from './routes/api/figma.convert'
@@ -93,6 +94,11 @@ const ApiFigmaImportRoute = ApiFigmaImportRouteImport.update({
   path: '/api/figma/import',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFigmaFetchNodeRoute = ApiFigmaFetchNodeRouteImport.update({
+  id: '/api/figma/fetch-node',
+  path: '/api/figma/fetch-node',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFigmaDisconnectRoute = ApiFigmaDisconnectRouteImport.update({
   id: '/api/figma/disconnect',
   path: '/api/figma/disconnect',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/fetch-node': typeof ApiFigmaFetchNodeRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/fetch-node': typeof ApiFigmaFetchNodeRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
+  '/api/figma/fetch-node': typeof ApiFigmaFetchNodeRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
+    | '/api/figma/fetch-node'
     | '/api/figma/import'
     | '/auth/figma/callback'
     | '/auth/figma/start'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
+    | '/api/figma/fetch-node'
     | '/api/figma/import'
     | '/auth/figma/callback'
     | '/auth/figma/start'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
+    | '/api/figma/fetch-node'
     | '/api/figma/import'
     | '/auth/figma/callback'
     | '/auth/figma/start'
@@ -251,6 +263,7 @@ export interface RootRouteChildren {
   ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
   ApiFigmaConvertBatchRoute: typeof ApiFigmaConvertBatchRoute
   ApiFigmaDisconnectRoute: typeof ApiFigmaDisconnectRoute
+  ApiFigmaFetchNodeRoute: typeof ApiFigmaFetchNodeRoute
   ApiFigmaImportRoute: typeof ApiFigmaImportRoute
   AuthFigmaCallbackRoute: typeof AuthFigmaCallbackRoute
   AuthFigmaStartRoute: typeof AuthFigmaStartRoute
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFigmaImportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/figma/fetch-node': {
+      id: '/api/figma/fetch-node'
+      path: '/api/figma/fetch-node'
+      fullPath: '/api/figma/fetch-node'
+      preLoaderRoute: typeof ApiFigmaFetchNodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/figma/disconnect': {
       id: '/api/figma/disconnect'
       path: '/api/figma/disconnect'
@@ -428,6 +448,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFigmaConvertRoute: ApiFigmaConvertRoute,
   ApiFigmaConvertBatchRoute: ApiFigmaConvertBatchRoute,
   ApiFigmaDisconnectRoute: ApiFigmaDisconnectRoute,
+  ApiFigmaFetchNodeRoute: ApiFigmaFetchNodeRoute,
   ApiFigmaImportRoute: ApiFigmaImportRoute,
   AuthFigmaCallbackRoute: AuthFigmaCallbackRoute,
   AuthFigmaStartRoute: AuthFigmaStartRoute,
@@ -435,3 +456,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
