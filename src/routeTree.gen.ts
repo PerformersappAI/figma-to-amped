@@ -22,6 +22,7 @@ import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
 import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
 import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disconnect'
+import { Route as ApiFigmaConvertBatchRouteImport } from './routes/api/figma.convert-batch'
 import { Route as ApiFigmaConvertRouteImport } from './routes/api/figma.convert'
 import { Route as AuthenticatedProjectsIdPreviewRouteImport } from './routes/_authenticated/projects/$id/preview'
 import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_authenticated/projects/$id/editor'
@@ -90,6 +91,11 @@ const ApiFigmaDisconnectRoute = ApiFigmaDisconnectRouteImport.update({
   path: '/api/figma/disconnect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFigmaConvertBatchRoute = ApiFigmaConvertBatchRouteImport.update({
+  id: '/api/figma/convert-batch',
+  path: '/api/figma/convert-batch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFigmaConvertRoute = ApiFigmaConvertRouteImport.update({
   id: '/api/figma/convert',
   path: '/api/figma/convert',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
+  '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
+  '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/preview/$projectId': typeof PreviewProjectIdRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
+  '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
   '/api/figma/disconnect': typeof ApiFigmaDisconnectRoute
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/api/ai-design-chat'
     | '/preview/$projectId'
     | '/api/figma/convert'
+    | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
     | '/api/figma/import'
     | '/auth/figma/callback'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/api/ai-design-chat'
     | '/preview/$projectId'
     | '/api/figma/convert'
+    | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
     | '/api/figma/import'
     | '/auth/figma/callback'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/api/ai-design-chat'
     | '/preview/$projectId'
     | '/api/figma/convert'
+    | '/api/figma/convert-batch'
     | '/api/figma/disconnect'
     | '/api/figma/import'
     | '/auth/figma/callback'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
   PreviewProjectIdRoute: typeof PreviewProjectIdRoute
   ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
+  ApiFigmaConvertBatchRoute: typeof ApiFigmaConvertBatchRoute
   ApiFigmaDisconnectRoute: typeof ApiFigmaDisconnectRoute
   ApiFigmaImportRoute: typeof ApiFigmaImportRoute
   AuthFigmaCallbackRoute: typeof AuthFigmaCallbackRoute
@@ -323,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFigmaDisconnectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/figma/convert-batch': {
+      id: '/api/figma/convert-batch'
+      path: '/api/figma/convert-batch'
+      fullPath: '/api/figma/convert-batch'
+      preLoaderRoute: typeof ApiFigmaConvertBatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/figma/convert': {
       id: '/api/figma/convert'
       path: '/api/figma/convert'
@@ -375,6 +395,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
   PreviewProjectIdRoute: PreviewProjectIdRoute,
   ApiFigmaConvertRoute: ApiFigmaConvertRoute,
+  ApiFigmaConvertBatchRoute: ApiFigmaConvertBatchRoute,
   ApiFigmaDisconnectRoute: ApiFigmaDisconnectRoute,
   ApiFigmaImportRoute: ApiFigmaImportRoute,
   AuthFigmaCallbackRoute: AuthFigmaCallbackRoute,
@@ -383,3 +404,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
