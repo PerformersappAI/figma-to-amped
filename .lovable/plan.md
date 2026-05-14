@@ -1,62 +1,56 @@
-## What's actually broken
+# Fix editor layout: center page + resolve overlapping logo
 
-The converter in `src/lib/figma-convert.ts` produces HTML that looks fine in the editor at desktop widths but collapses into the overlapping mess you screenshotted. Three concrete bugs:
+Two separate issues are visible in the screenshot:
 
-### 1. Root frame uses `width: 100%` + `max-width` instead of fixed width
+1. **Page is not centered in the editor canvas.** The Figma frame is 1440px wide and the GrapesJS iframe body has no centering, so the page sits flush-left and gets clipped on the right (logo touches the sidebar, no breathing room, no scroll).
+2. **The wave logo and "EANWIDE OUTFITTERS" wordmark overlap.** In Figma these two layers are intentionally arranged because one of them is a clipping/alpha mask on the wordmark. Our converter ignores `isMask` / `MASK` layers entirely, so both render at full size and stack on top of each other.
 
-```text
-<main>
-  <div class="root" style="width:100%; max-width:1440px; min-height:Hpx; position:relative">
-    <div style="position:absolute; left:1180px; top:60px;">  ← child positioned at Figma coords
-```
+Neither is a backend / pipeline issue — both fixes live in the deterministic converter and the editor shell. No re-fetch from Figma is needed; existing pages just need to be re-rendered (Step 3) via the existing retry path, and the editor change is live for any open project.
 
-When the editor / preview iframe is narrower than 1440px, the root collapses but children are still absolutely positioned at the original Figma X/Y. Anything past the viewport width slides on top of earlier content. That's why the coral image sits on top of "TRAVEL".
+## Scope
 
-**Fix:** root gets `width: ${frameWidth}px` (no `max-width`, no `100%`). The outer iframe/canvas can scroll or zoom, but coordinates always line up.
+### 1. Center the page inside the GrapesJS canvas
+File: `src/routes/_authenticated/projects/$id/editor.tsx`
 
-### 2. Absolute-positioned wrapper has no width/height
+After `grapesjs.init({...})`, inject a stylesheet into the canvas iframe so that:
 
-```text
-<div style="position:absolute; left:Xpx; top:Ypx;">${childHtml}</div>
-```
+- `html, body { margin: 0; background: #2a2a2a; min-height: 100%; }`
+- `body { display: flex; justify-content: center; align-items: flex-start; padding: 24px; box-sizing: border-box; overflow-x: auto; }`
+- `body > * { flex: 0 0 auto; box-shadow: 0 8px 40px rgba(0,0,0,0.4); background: #fff; }`
 
-The wrapper has no size, so the child renders at its *natural* size. For a TEXT node that means the paragraph wraps at whatever width the browser feels like — usually much wider than the original Figma text box. That's why "Local Dive Events and Trips…" runs the full page width and crashes through the image.
+Use `editor.Canvas.getDocument()` to append a `<style>` tag once the canvas is ready (`editor:load` event). This keeps the converted `<main>` (which we now size to the true frame width, e.g. 1440px) horizontally centered with a dark gutter on each side, and gives a small scroll if the user shrinks the panel. WYSIWYG dragging is unaffected — we only style the iframe chrome, not the page contents.
 
-**Fix:** the wrapper takes the child's bbox dimensions:
-```text
-style="position:absolute; left:Xpx; top:Ypx; width:Wpx; height:Hpx;"
-```
+### 2. Honor Figma masks in the converter
+File: `src/lib/figma-convert.ts`
 
-### 3. TEXT nodes have no width/height of their own
+When walking children in `convertNode`, detect mask layers:
 
-`textStyle()` only sets font properties — never `width` or `height`. Even with the wrapper fix above, text inside an auto-layout parent (no absolute wrapper) still has no constrained width. "TRAVEL" renders at the browser's default headline behavior (no wrap, full natural width) so it bleeds across the page.
+- A child node has `isMask === true` (Figma marks the mask layer this way).
+- Or its `type === "BOOLEAN_OPERATION"` with `booleanOperation === "INTERSECT"` acting as a mask wrapper.
 
-**Fix:** in `textStyle`, also emit `width: ${bbox.width}px` and (for non-auto-sizing text) a min-height. Set `word-wrap: break-word` so long words don't bleed.
+For the simplest correct fix, when iterating `node.children`:
 
-### 4. Bonus: root height
+- Find the first child with `isMask === true`. The mask layer itself should NOT render as a visible element. Instead:
+  - Drop the mask layer from the output entirely (don't emit its `<img>` / `<div>`).
+  - Apply its bounding box to its parent as `overflow: hidden` clipping (or, if its shape is an ellipse, set `border-radius: 50%` on the parent), so the siblings that were intended to be clipped are visually contained.
+- Subsequent siblings keep rendering normally — they are now clipped by the parent instead of bleeding over the wordmark.
 
-Root currently uses `min-height: Hpx` so it can grow. With absolute children that's fine, but auto-layout siblings can push it. Switch to `height: ${frameHeight}px; overflow: hidden` only when the frame uses no auto-layout (the common case for design files like Oceanwide).
+This is a minimal, conservative fix: it removes the duplicated wave that overlays the wordmark, and any frame that uses a mask now clips its contents rather than rendering both layers stacked. More sophisticated mask compositing (SVG `<mask>`, `clip-path: path()`) is out of scope.
 
-## Files to change
-
-Just one — `src/lib/figma-convert.ts`. Specifically:
-
-- `nodeStyle(node, ctx, isRoot=true)` branch — replace the `width: 100% / max-width` block with a fixed `width: ${frameWidth}px` and add `overflow: hidden` for non-auto-layout root frames.
-- `textStyle(node)` — accept the node's `absoluteBoundingBox`, emit `width`, `min-height`, and `word-wrap: break-word`.
-- `convertNode` — when emitting the absolute-position wrapper, include `width` and `height` from the child's bbox.
-
-No backend, schema, API, or pipeline changes. No re-conversion required for *future* pages — but existing failed/ugly pages need to be re-rendered. The cheapest path: from the upload screen, hit the existing "Retry" affordance which calls `runRenderStep` again (no Figma fetch, no asset re-download, no Claude pass needed for short HTML).
-
-## Out of scope for this fix
-
-- Responsive behavior (the original Figma is desktop-only at 1440px — making it adapt to mobile is a separate, larger effort).
-- Claude cleanup pass logic — it's already preserving layout.
-- Vector / image fidelity — that's Phase 2.2 territory and works.
+### 3. Re-render existing pages
+No DB migration. The user re-runs the existing retry on the affected page (HP, Mobile, etc.) — `runRenderStep` regenerates HTML/CSS from the cached `figma_node_tree` using the new converter logic. No Figma fetch, no asset re-download, no Claude pass for short HTML.
 
 ## Test plan
 
-1. Re-render the Oceanwide HP page and confirm: "TRAVEL" stays in its own column, paragraphs wrap inside their original text boxes, the two photos stay in their own slots, no overlap.
-2. Re-render the Contact - Mobile page and confirm the mobile layout still looks correct (it was a 375px frame, so the fixed-width fix should *help* not hurt).
-3. Open the editor and click on a paragraph — confirm GrapesJS still treats it as a selectable, editable element.
+1. Re-render the Oceanwide HP page from upload screen.
+2. Open it in the editor: page sits centered in the canvas with dark gutters on each side; resize browser → page scrolls horizontally inside the canvas instead of clipping under the sidebar.
+3. The wave logo and "OCEANWIDE OUTFITTERS" wordmark no longer overlap — only the wordmark (or only the wave, depending on which layer Figma marked as mask) is visible in that slot.
+4. Click any heading or paragraph in the editor — still selectable and draggable in GrapesJS.
+5. Re-render the Contact - Mobile page (375px frame): centered in canvas, narrower gutters, still editable.
 
-After approval I'll make the edits, then ping you to retry the render step on one Oceanwide page so we can compare.
+## Out of scope
+
+- Anything in the Step 1/2/4 pipeline (Figma fetch, asset processing, Claude cleanup).
+- Any DB schema change.
+- Auto-layout / flexbox refactor of converter output (still using absolute positioning fallback).
+- Full SVG mask compositing.

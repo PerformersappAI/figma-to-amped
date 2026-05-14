@@ -151,6 +151,21 @@ function EditorPage() {
       if (home.grapesjson) {
         try { editor.loadProjectData(home.grapesjson as any); } catch { /* ignore */ }
       }
+      // Center the converted page inside the canvas iframe with dark gutters.
+      editor.on("load", () => {
+        try {
+          const doc = editor.Canvas.getDocument();
+          if (!doc) return;
+          const style = doc.createElement("style");
+          style.setAttribute("data-figmaship-canvas", "1");
+          style.textContent = `
+            html, body { margin: 0; background: #2a2a2a; min-height: 100%; }
+            body { display: flex; justify-content: center; align-items: flex-start; padding: 24px; box-sizing: border-box; overflow-x: auto; }
+            body > * { flex: 0 0 auto; box-shadow: 0 8px 40px rgba(0,0,0,0.4); background: #fff; }
+          `;
+          doc.head.appendChild(style);
+        } catch { /* ignore */ }
+      });
       editorRef.current = editor;
     })();
     return () => { mounted = false; editorRef.current?.destroy(); };

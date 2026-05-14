@@ -261,9 +261,21 @@ function convertNode(node: any, ctx: ConvertCtx, depth = 0, isRoot = false): str
   if (!node.layoutMode && (node.children || []).length > 0) {
     style["position"] = "relative";
   }
+
+  // Honor Figma masks: drop the mask layer itself and clip the parent so
+  // the layers it was meant to mask don't bleed out as full-size siblings.
+  const rawChildren = (node.children || []) as any[];
+  const hasMask = rawChildren.some((c) => c?.isMask === true);
+  if (hasMask) {
+    style["overflow"] = "hidden";
+    const maskNode = rawChildren.find((c) => c?.isMask === true);
+    if (maskNode?.type === "ELLIPSE") style["border-radius"] = "50%";
+  }
+  const visibleChildren = rawChildren.filter((c) => c?.isMask !== true);
+
   ctx.cssRules.set(cls, style);
 
-  const children = (node.children || []).map((c: any) => {
+  const children = visibleChildren.map((c: any) => {
     const html = convertNode(c, ctx, depth + 1, false);
     // Absolute positioning fallback
     if (!node.layoutMode && c.absoluteBoundingBox && node.absoluteBoundingBox && html) {
