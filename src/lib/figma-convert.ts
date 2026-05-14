@@ -269,8 +269,11 @@ function convertNode(node: any, ctx: ConvertCtx, depth = 0, isRoot = false): str
     if (!node.layoutMode && c.absoluteBoundingBox && node.absoluteBoundingBox && html) {
       const x = Math.round(c.absoluteBoundingBox.x - node.absoluteBoundingBox.x);
       const y = Math.round(c.absoluteBoundingBox.y - node.absoluteBoundingBox.y);
-      // Inject inline style for position - we wrap in a positioning div
-      return `<div style="position:absolute;left:${x}px;top:${y}px;">${html}</div>`;
+      const w = Math.round(c.absoluteBoundingBox.width);
+      const h = Math.round(c.absoluteBoundingBox.height);
+      // Wrap in a positioning div sized to the child's Figma bounding box
+      // so children render at their original size and don't bleed.
+      return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;">${html}</div>`;
     }
     return html;
   }).join("\n");
