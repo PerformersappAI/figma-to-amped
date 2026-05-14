@@ -138,11 +138,13 @@ function nodeStyle(node: any, ctx: ConvertCtx, isRoot: boolean): { style: Style;
 
   if (bbox) {
     if (isRoot) {
-      style["width"] = "100%";
-      style["max-width"] = `${Math.round(bbox.width)}px`;
-      style["min-height"] = `${Math.round(bbox.height)}px`;
+      // Use the frame's true Figma width so absolutely-positioned children
+      // line up with their original X/Y. The outer canvas/iframe scrolls.
+      style["width"] = `${Math.round(bbox.width)}px`;
+      style["height"] = `${Math.round(bbox.height)}px`;
       style["margin"] = "0 auto";
       style["position"] = "relative";
+      if (!node.layoutMode) style["overflow"] = "hidden";
     } else {
       style["width"] = `${Math.round(bbox.width)}px`;
       style["height"] = `${Math.round(bbox.height)}px`;
@@ -187,6 +189,14 @@ function textStyle(node: any): { tag: string; style: Style } {
   if (ts.textAlignHorizontal) s["text-align"] = String(ts.textAlignHorizontal).toLowerCase();
   const f = (node.fills || []).find((x: any) => x.type === "SOLID" && x.visible !== false);
   if (f) s["color"] = rgbaToCss({ ...f.color, a: f.opacity ?? f.color?.a ?? 1 });
+  // Constrain to original Figma text box so paragraphs wrap correctly.
+  const bbox = node.absoluteBoundingBox;
+  if (bbox) {
+    s["width"] = `${Math.round(bbox.width)}px`;
+    s["min-height"] = `${Math.round(bbox.height)}px`;
+  }
+  s["word-wrap"] = "break-word";
+  s["overflow-wrap"] = "break-word";
   s["margin"] = "0";
   return { tag: pickTextTag(fontSize), style: s };
 }
@@ -259,8 +269,11 @@ function convertNode(node: any, ctx: ConvertCtx, depth = 0, isRoot = false): str
     if (!node.layoutMode && c.absoluteBoundingBox && node.absoluteBoundingBox && html) {
       const x = Math.round(c.absoluteBoundingBox.x - node.absoluteBoundingBox.x);
       const y = Math.round(c.absoluteBoundingBox.y - node.absoluteBoundingBox.y);
-      // Inject inline style for position - we wrap in a positioning div
-      return `<div style="position:absolute;left:${x}px;top:${y}px;">${html}</div>`;
+      const w = Math.round(c.absoluteBoundingBox.width);
+      const h = Math.round(c.absoluteBoundingBox.height);
+      // Wrap in a positioning div sized to the child's Figma bounding box
+      // so children render at their original size and don't bleed.
+      return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;">${html}</div>`;
     }
     return html;
   }).join("\n");
