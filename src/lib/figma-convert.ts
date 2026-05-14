@@ -189,6 +189,14 @@ function textStyle(node: any): { tag: string; style: Style } {
   if (ts.textAlignHorizontal) s["text-align"] = String(ts.textAlignHorizontal).toLowerCase();
   const f = (node.fills || []).find((x: any) => x.type === "SOLID" && x.visible !== false);
   if (f) s["color"] = rgbaToCss({ ...f.color, a: f.opacity ?? f.color?.a ?? 1 });
+  // Constrain to original Figma text box so paragraphs wrap correctly.
+  const bbox = node.absoluteBoundingBox;
+  if (bbox) {
+    s["width"] = `${Math.round(bbox.width)}px`;
+    s["min-height"] = `${Math.round(bbox.height)}px`;
+  }
+  s["word-wrap"] = "break-word";
+  s["overflow-wrap"] = "break-word";
   s["margin"] = "0";
   return { tag: pickTextTag(fontSize), style: s };
 }
