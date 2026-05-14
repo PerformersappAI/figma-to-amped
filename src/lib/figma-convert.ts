@@ -138,11 +138,13 @@ function nodeStyle(node: any, ctx: ConvertCtx, isRoot: boolean): { style: Style;
 
   if (bbox) {
     if (isRoot) {
-      style["width"] = "100%";
-      style["max-width"] = `${Math.round(bbox.width)}px`;
-      style["min-height"] = `${Math.round(bbox.height)}px`;
+      // Use the frame's true Figma width so absolutely-positioned children
+      // line up with their original X/Y. The outer canvas/iframe scrolls.
+      style["width"] = `${Math.round(bbox.width)}px`;
+      style["height"] = `${Math.round(bbox.height)}px`;
       style["margin"] = "0 auto";
       style["position"] = "relative";
+      if (!node.layoutMode) style["overflow"] = "hidden";
     } else {
       style["width"] = `${Math.round(bbox.width)}px`;
       style["height"] = `${Math.round(bbox.height)}px`;
