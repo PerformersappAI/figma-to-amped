@@ -70,6 +70,24 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "page";
 }
 
+function fitEditorCanvas(editor: Editor | null) {
+  if (!editor) return;
+  try {
+    requestAnimationFrame(() => {
+      try {
+        editor.Canvas.fitViewport({
+          gap: 24,
+          zoom: (value) => Math.max(20, Math.min(100, Number(value) || 100)),
+        });
+      } catch {
+        /* ignore fit errors */
+      }
+    });
+  } catch {
+    /* ignore scheduling errors */
+  }
+}
+
 function EditorPage() {
   const { id } = Route.useParams();
   const nav = useNavigate();
@@ -156,6 +174,7 @@ function EditorPage() {
         try {
           const doc = editor.Canvas.getDocument();
           if (!doc) return;
+          if (doc.head.querySelector('style[data-figmaship-canvas="1"]')) return;
           const style = doc.createElement("style");
           style.setAttribute("data-figmaship-canvas", "1");
           style.textContent = `
@@ -166,7 +185,9 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
+      editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
       editorRef.current = editor;
+      fitEditorCanvas(editor);
     })();
     return () => { mounted = false; editorRef.current?.destroy(); };
   }, [id]);
@@ -201,6 +222,7 @@ function EditorPage() {
     ed.setComponents(data.html || BLANK_CANVAS);
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
+    fitEditorCanvas(ed);
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
     setFigmaRef(data.figma_design_reference_url || null);
@@ -283,6 +305,7 @@ function EditorPage() {
   function setDevice(d: "Desktop" | "Mobile") {
     setDeviceState(d);
     editorRef.current?.setDevice(d);
+    fitEditorCanvas(editorRef.current);
   }
 
   return (
