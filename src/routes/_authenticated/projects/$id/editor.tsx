@@ -210,7 +210,7 @@ function EditorPage() {
         container: ref.current,
         height: "100%",
         width: "auto",
-        scrollableCanvas: true,
+        canvas: { scrollableCanvas: true },
         storageManager: false,
         fromElement: false,
         panels: { defaults: [] },
