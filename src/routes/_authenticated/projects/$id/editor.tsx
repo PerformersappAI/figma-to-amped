@@ -189,6 +189,7 @@ function EditorPage() {
   const nav = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const layersRef = useRef<HTMLDivElement>(null);
   const stylesRef = useRef<HTMLDivElement>(null);
   const activePageIdRef = useRef<string | null>(null);
