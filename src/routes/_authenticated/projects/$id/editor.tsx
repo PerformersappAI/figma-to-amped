@@ -210,6 +210,7 @@ function EditorPage() {
         container: ref.current,
         height: "100%",
         width: "auto",
+        scrollableCanvas: true,
         storageManager: false,
         fromElement: false,
         panels: { defaults: [] },
@@ -244,7 +245,10 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
-  editor.on("canvas:frame:load:body", () => updateCanvasWorkspace(editor));
+      editor.on("canvas:frame:load:body", () => {
+        updateCanvasWorkspace(editor);
+        applyZoom(editor, setZoom, Number(editor.Canvas.getZoom()) || 100);
+      });
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
