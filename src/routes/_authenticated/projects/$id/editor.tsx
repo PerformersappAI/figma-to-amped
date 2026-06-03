@@ -332,6 +332,7 @@ function EditorPage() {
     ed.setComponents(data.html || BLANK_CANVAS);
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
+    enableComponentDragging(ed);
     fitToViewport(ed, setZoom);
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
