@@ -341,6 +341,10 @@ function EditorPage() {
           <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
           <DeviceBtn active={device === "Desktop"} onClick={() => setDevice("Desktop")} icon={<Monitor size={14} />} label="Desktop" />
           <DeviceBtn active={device === "Mobile"} onClick={() => setDevice("Mobile")} icon={<Smartphone size={14} />} label="Mobile" />
+          <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
+          <button onClick={() => zoomOut(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom out"><ZoomOut size={16} /></button>
+          <span className="font-display text-[10px] text-[#888] min-w-[32px] text-center">{zoom}%</span>
+          <button onClick={() => zoomIn(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
