@@ -343,7 +343,7 @@ function EditorPage() {
       const editor = grapesjs.init({
         container: ref.current,
         height: "100%",
-        width: "auto",
+        width: "100%",
         canvas: { scrollableCanvas: true },
         dragMode: "absolute",
 
@@ -653,8 +653,8 @@ function EditorPage() {
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0 relative" style={{ flex: 1, position: "relative", overflow: "hidden", minWidth: 0, maxWidth: "none", width: "100%", height: "100%", background: "#0a0a0a" }}>
-          <div ref={ref} style={{ width: "100%", maxWidth: "none", minHeight: "100%", position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+        <div className="flex-1 min-w-0 relative" style={{ flex: 1, position: "relative", overflow: "hidden", minWidth: 0, background: "#0a0a0a" }}>
+          <div ref={ref} style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden" }} />
           <button
             onClick={() => setChatOpen(true)}
             className="absolute bottom-6 right-6 flex items-center justify-center shadow-xl z-30 transition-transform hover:scale-105"
