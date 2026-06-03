@@ -278,9 +278,10 @@ function EditorPage() {
           const style = doc.createElement("style");
           style.setAttribute("data-figmaship-canvas", "1");
           style.textContent = `
-            html, body { margin: 0; background: #2a2a2a; min-height: 100%; }
-            body { display: flex; justify-content: center; align-items: flex-start; padding: 24px; box-sizing: border-box; overflow-x: auto; }
-            body > * { flex: 0 0 auto; box-shadow: 0 8px 40px rgba(0,0,0,0.4); background: #fff; }
+            html, body { margin: 0; background: #fff; min-height: 100%; }
+            body { width: 100%; overflow-x: hidden; }
+            body > * { max-width: 100% !important; }
+            img, video { max-width: 100%; height: auto; }
           `;
           doc.head.appendChild(style);
         } catch { /* ignore */ }
