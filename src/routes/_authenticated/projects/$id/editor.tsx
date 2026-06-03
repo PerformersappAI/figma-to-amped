@@ -143,7 +143,7 @@ function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
           doc?.documentElement?.scrollWidth || 0,
         );
       const available = canvasEl.clientWidth - 48; // gutters
-      const scalePct = Math.max(10, Math.min(100, Math.floor((available / contentW) * 100)));
+      const scalePct = Math.max(10, Math.min(400, Math.floor((available / contentW) * 100)));
       applyZoom(editor, setZoomFn, scalePct);
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = Math.max(0, (canvasEl.scrollWidth - canvasEl.clientWidth) / 2);
@@ -189,6 +189,7 @@ function EditorPage() {
   const nav = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const layersRef = useRef<HTMLDivElement>(null);
   const stylesRef = useRef<HTMLDivElement>(null);
   const activePageIdRef = useRef<string | null>(null);
@@ -278,9 +279,10 @@ function EditorPage() {
           const style = doc.createElement("style");
           style.setAttribute("data-figmaship-canvas", "1");
           style.textContent = `
-            html, body { margin: 0; background: #2a2a2a; min-height: 100%; }
-            body { display: flex; justify-content: center; align-items: flex-start; padding: 24px; box-sizing: border-box; overflow-x: auto; }
-            body > * { flex: 0 0 auto; box-shadow: 0 8px 40px rgba(0,0,0,0.4); background: #fff; }
+            html, body { margin: 0; background: #fff; min-height: 100%; }
+            body { width: 100%; overflow-x: hidden; }
+            body > * { max-width: 100% !important; }
+            img, video { max-width: 100%; height: auto; }
           `;
           doc.head.appendChild(style);
         } catch { /* ignore */ }
@@ -298,8 +300,23 @@ function EditorPage() {
       });
       editorRef.current = editor;
       fitToViewport(editor, setZoom);
+
+      // Refit when the workspace container resizes
+      const workspaceEl = ref.current?.parentElement;
+      let rafId = 0;
+      const ro = workspaceEl ? new ResizeObserver(() => {
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => fitToViewport(editor, setZoom));
+      }) : null;
+      if (ro && workspaceEl) ro.observe(workspaceEl);
+      resizeObserverRef.current = ro;
     })();
-    return () => { mounted = false; editorRef.current?.destroy(); };
+    return () => {
+      mounted = false;
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+      editorRef.current?.destroy();
+    };
   }, [id]);
 
   async function saveActivePage(showToast = false) {

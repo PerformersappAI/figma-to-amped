@@ -168,9 +168,9 @@
 .gjs-pn-btn.gjs-pn-active, .gjs-pn-btn:hover { color: #c8f000 !important; }
 .gjs-sm-sector .gjs-sm-title, .gjs-sm-property .gjs-sm-label { color: #fff !important; font-family: var(--font-display) !important; text-transform: uppercase; letter-spacing: 0.05em; }
 .gjs-field { background: #0a0a0a !important; color: #fff !important; border: 1px solid #2a2a2a !important; border-radius: 3px !important; }
-.gjs-cv-canvas { background: #0a0a0a !important; width: 100% !important; max-width: none !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
-.gjs-frame-wrapper, .gjs-frame-wrapper__top, .gjs-frame-wrapper__right, .gjs-frame-wrapper__left, .gjs-frame-wrapper__bottom { width: 100% !important; max-width: none !important; }
-.gjs-frame { width: 100% !important; max-width: none !important; border: 0 !important; }
+.gjs-cv-canvas { background: #0a0a0a !important; width: 100% !important; height: 100% !important; overflow: auto !important; }
+.gjs-frame-wrapper { width: 100% !important; max-width: none !important; }
+.gjs-frame { width: 100% !important; max-width: none !important; min-height: 100% !important; border: 0 !important; display: block !important; }
 
 /* Skeleton shimmer for loading states */
 .skeleton-shimmer {
