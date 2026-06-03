@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import CanvasEditor from "@/components/CanvasEditor";
+import GrapesEditor from "@/components/GrapesEditor";
 
 export const Route = createFileRoute("/canvas-editor")({
-  component: CanvasEditor,
+  component: GrapesEditor,
 });
