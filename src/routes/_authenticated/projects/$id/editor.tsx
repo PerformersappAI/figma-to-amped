@@ -396,6 +396,7 @@ function EditorPage() {
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
+        requestAnimationFrame(() => resetCanvasToTop(editor));
       });
       editorRef.current = editor;
       fitToViewport(editor, setZoom);
