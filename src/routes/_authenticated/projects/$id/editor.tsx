@@ -78,14 +78,66 @@ function updateCanvasWorkspace(editor: Editor | null) {
       const container = editor.getContainer();
       if (!container) return;
       const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
+      const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
       if (canvasEl) {
         canvasEl.style.overflow = "auto";
         canvasEl.style.background = "#0a0a0a";
+        canvasEl.style.alignItems = "flex-start";
+      }
+      if (frameWrapper) {
+        frameWrapper.style.marginTop = "0";
+        frameWrapper.style.top = "0";
       }
       editor.refresh({ tools: true });
     } catch {
       /* ignore workspace errors */
     }
+  });
+}
+
+function resetCanvasToTop(editor: Editor | null) {
+  if (!editor) return;
+
+  const syncTop = () => {
+    try {
+      const container = editor.getContainer();
+      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
+      const frameWrapper = container?.querySelector<HTMLElement>(".gjs-frame-wrapper");
+      const doc = editor.Canvas.getDocument();
+      const win = editor.Canvas.getWindow();
+
+      if (canvasEl) {
+        canvasEl.scrollTop = 0;
+        canvasEl.scrollLeft = 0;
+      }
+
+      if (frameWrapper) {
+        frameWrapper.style.marginTop = "0";
+        frameWrapper.style.top = "0";
+      }
+
+      if (win) {
+        win.scrollTo(0, 0);
+      }
+
+      if (doc?.documentElement) {
+        doc.documentElement.scrollTop = 0;
+        doc.documentElement.scrollLeft = 0;
+      }
+
+      if (doc?.body) {
+        doc.body.scrollTop = 0;
+        doc.body.scrollLeft = 0;
+      }
+    } catch {
+      /* ignore scroll reset errors */
+    }
+  };
+
+  syncTop();
+  requestAnimationFrame(() => {
+    syncTop();
+    requestAnimationFrame(syncTop);
   });
 }
 
@@ -127,16 +179,12 @@ function applyZoom(
       }
     }
     if (resetScroll && canvasEl) {
-      canvasEl.scrollTop = 0;
-      canvasEl.scrollLeft = 0;
-      // Re-assert after layout settles so GrapesJS' internal refresh
-      // can't restore an old scroll position mid-zoom.
-      requestAnimationFrame(() => {
-        canvasEl.scrollTop = 0;
-        canvasEl.scrollLeft = 0;
-      });
+      resetCanvasToTop(editor);
     }
     editor.refresh({ tools: true });
+    if (resetScroll) {
+      requestAnimationFrame(() => resetCanvasToTop(editor));
+    }
   } catch {
     /* ignore zoom errors */
   }
