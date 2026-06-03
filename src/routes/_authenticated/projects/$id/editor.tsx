@@ -105,6 +105,9 @@ function applyZoom(
   if (!editor) return;
   const next = Math.max(10, Math.min(400, Math.round(value)));
   const effective = (next / 100) * (fitScaleRef.current || 1);
+  // Default to resetting scroll on every zoom change so the page stays
+  // anchored to the top instead of jumping to a mid-page region.
+  const resetScroll = opts.resetScroll !== false;
   try {
     const container = editor.getContainer();
     if (!container) return;
@@ -123,9 +126,15 @@ function applyZoom(
         frameWrapper.style.height = `${baseH * effective}px`;
       }
     }
-    if (opts.resetScroll && canvasEl) {
+    if (resetScroll && canvasEl) {
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = 0;
+      // Re-assert after layout settles so GrapesJS' internal refresh
+      // can't restore an old scroll position mid-zoom.
+      requestAnimationFrame(() => {
+        canvasEl.scrollTop = 0;
+        canvasEl.scrollLeft = 0;
+      });
     }
     editor.refresh({ tools: true });
   } catch {
