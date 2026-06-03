@@ -522,8 +522,8 @@ function EditorPage() {
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0 relative" style={{ background: "#0a0a0a" }}>
-          <div ref={ref} style={{ height: "100%" }} />
+        <div className="flex-1 min-w-0 relative" style={{ flex: 1, position: "relative", overflow: "hidden", minWidth: 0, height: "100%", background: "#0a0a0a" }}>
+          <div ref={ref} style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
           <button
             onClick={() => setChatOpen(true)}
             className="absolute bottom-6 right-6 flex items-center justify-center shadow-xl z-30 transition-transform hover:scale-105"
