@@ -347,9 +347,25 @@ function EditorPage() {
           <DeviceBtn active={device === "Desktop"} onClick={() => setDevice("Desktop")} icon={<Monitor size={14} />} label="Desktop" />
           <DeviceBtn active={device === "Mobile"} onClick={() => setDevice("Mobile")} icon={<Smartphone size={14} />} label="Mobile" />
           <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
-          <button onClick={() => zoomOut(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom out"><ZoomOut size={16} /></button>
-          <span className="font-display text-[10px] text-[#888] min-w-[32px] text-center">{zoom}%</span>
-          <button onClick={() => zoomIn(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
+          <button onClick={() => zoomOut(editorRef.current, setZoom, zoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom out"><ZoomOut size={16} /></button>
+          <input
+            type="number"
+            min={10}
+            max={400}
+            value={zoom}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (Number.isFinite(v)) setZoom(v);
+            }}
+            onBlur={(e) => applyZoom(editorRef.current, setZoom, Number(e.target.value) || 100)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applyZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100);
+            }}
+            className="w-14 bg-transparent border border-[#2a2a2a] rounded text-white text-center text-[11px] py-1 focus:outline-none focus:border-[var(--accent)]"
+            title="Zoom %"
+          />
+          <span className="font-display text-[10px] text-[#888]">%</span>
+          <button onClick={() => zoomIn(editorRef.current, setZoom, zoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
