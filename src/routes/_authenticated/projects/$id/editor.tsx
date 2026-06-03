@@ -88,6 +88,9 @@ function updateCanvasWorkspace(editor: Editor | null) {
       }
       if (framesEl) {
         framesEl.style.position = "relative";
+        framesEl.style.display = "flex";
+        framesEl.style.justifyContent = "center";
+        framesEl.style.alignItems = "flex-start";
         framesEl.style.width = "max-content";
         framesEl.style.minWidth = "100%";
         framesEl.style.minHeight = "100%";
@@ -96,7 +99,7 @@ function updateCanvasWorkspace(editor: Editor | null) {
         frameWrapper.style.position = "relative";
         frameWrapper.style.width = "auto";
         frameWrapper.style.height = "auto";
-        frameWrapper.style.left = "50%";
+        frameWrapper.style.left = "auto";
         frameWrapper.style.right = "auto";
         frameWrapper.style.margin = "0 auto";
         frameWrapper.style.transformOrigin = "top center";
@@ -123,14 +126,9 @@ function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
       updateCanvasWorkspace(editor);
       const container = editor.getContainer();
       const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frameEl = editor.Canvas.getFrameEl();
-      if (!canvasEl || !frameEl) return;
-      const gutter = 64;
-      const availableWidth = Math.max(240, canvasEl.clientWidth - gutter);
-      const frameWidth = frameEl.offsetWidth || frameEl.clientWidth || availableWidth;
-      const next = Math.max(10, Math.min(100, Math.floor((availableWidth / frameWidth) * 100)));
-      editor.Canvas.setZoom(next);
-      setZoomFn(next);
+      editor.Canvas.setZoom(100);
+      setZoomFn(100);
+      if (!canvasEl) return;
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = Math.max(0, (canvasEl.scrollWidth - canvasEl.clientWidth) / 2);
       editor.refresh({ tools: true });
