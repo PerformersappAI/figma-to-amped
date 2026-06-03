@@ -343,7 +343,7 @@ function EditorPage() {
       const editor = grapesjs.init({
         container: ref.current,
         height: "100%",
-        width: "auto",
+        width: "100%",
         canvas: { scrollableCanvas: true },
         dragMode: "absolute",
 
