@@ -105,6 +105,9 @@ function applyZoom(
   if (!editor) return;
   const next = Math.max(10, Math.min(400, Math.round(value)));
   const effective = (next / 100) * (fitScaleRef.current || 1);
+  // Default to resetting scroll on every zoom change so the page stays
+  // anchored to the top instead of jumping to a mid-page region.
+  const resetScroll = opts.resetScroll !== false;
   try {
     const container = editor.getContainer();
     if (!container) return;
@@ -123,9 +126,15 @@ function applyZoom(
         frameWrapper.style.height = `${baseH * effective}px`;
       }
     }
-    if (opts.resetScroll && canvasEl) {
+    if (resetScroll && canvasEl) {
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = 0;
+      // Re-assert after layout settles so GrapesJS' internal refresh
+      // can't restore an old scroll position mid-zoom.
+      requestAnimationFrame(() => {
+        canvasEl.scrollTop = 0;
+        canvasEl.scrollLeft = 0;
+      });
     }
     editor.refresh({ tools: true });
   } catch {
@@ -325,10 +334,14 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
+      let didInitialFit = false;
       editor.on("canvas:frame:load:body", () => {
         updateCanvasWorkspace(editor);
         enableComponentDragging(editor);
-        fitToViewport(editor, setZoom);
+        if (!didInitialFit) {
+          didInitialFit = true;
+          fitToViewport(editor, setZoom);
+        }
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
@@ -511,9 +524,9 @@ function EditorPage() {
               const v = Number(e.target.value);
               if (Number.isFinite(v)) setZoom(v);
             }}
-            onBlur={(e) => applyZoom(editorRef.current, setZoom, Number(e.target.value) || 100)}
+            onBlur={(e) => applyZoom(editorRef.current, setZoom, Number(e.target.value) || 100, { resetScroll: true })}
             onKeyDown={(e) => {
-              if (e.key === "Enter") applyZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100);
+              if (e.key === "Enter") applyZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100, { resetScroll: true });
             }}
             className="w-14 bg-transparent border border-[#2a2a2a] rounded text-white text-center text-[11px] py-1 focus:outline-none focus:border-[var(--accent)]"
             title="Zoom %"
