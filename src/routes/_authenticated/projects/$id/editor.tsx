@@ -187,7 +187,8 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
-      editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
+  editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
+      editor.on("canvas:zoom", (ev: any) => setZoom(Math.round((ev.value || 1) * 100)));
       editorRef.current = editor;
       fitEditorCanvas(editor);
     })();
