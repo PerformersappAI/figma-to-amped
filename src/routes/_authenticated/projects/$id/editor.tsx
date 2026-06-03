@@ -307,6 +307,9 @@ function EditorPage() {
         updateCanvasWorkspace(editor);
         enableComponentDragging(editor);
         fitToViewport(editor, setZoom);
+        // Refit after images/fonts load so the scale matches the final content width
+        setTimeout(() => fitToViewport(editor, setZoom), 300);
+        setTimeout(() => fitToViewport(editor, setZoom), 1200);
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
