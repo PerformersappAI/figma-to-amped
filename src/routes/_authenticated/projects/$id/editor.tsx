@@ -249,6 +249,8 @@ function EditorPage() {
         height: "100%",
         width: "auto",
         canvas: { scrollableCanvas: true },
+        dragMode: "absolute",
+
         storageManager: false,
         fromElement: false,
         panels: { defaults: [] },
