@@ -71,30 +71,71 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "page";
 }
 
-function fitEditorCanvas(editor: Editor | null) {
+function updateCanvasWorkspace(editor: Editor | null) {
   if (!editor) return;
-  try {
-    requestAnimationFrame(() => {
-      try {
-        editor.Canvas.fitViewport({
-          gap: 24,
-          zoom: (value) => Math.max(20, Math.min(100, Number(value) || 100)),
-        });
-      } catch {
-        /* ignore fit errors */
+  requestAnimationFrame(() => {
+    try {
+      const container = editor.getContainer();
+      if (!container) return;
+      const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
+      const framesEl = container.querySelector<HTMLElement>(".gjs-cv-canvas__frames");
+      const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
+      if (canvasEl) {
+        canvasEl.style.overflow = "auto";
+        canvasEl.style.padding = "32px";
+        canvasEl.style.boxSizing = "border-box";
+        canvasEl.style.background = "#0a0a0a";
       }
-    });
-  } catch {
-    /* ignore scheduling errors */
-  }
+      if (framesEl) {
+        framesEl.style.position = "relative";
+        framesEl.style.display = "flex";
+        framesEl.style.justifyContent = "center";
+        framesEl.style.alignItems = "flex-start";
+        framesEl.style.width = "max-content";
+        framesEl.style.minWidth = "100%";
+        framesEl.style.minHeight = "100%";
+      }
+      if (frameWrapper) {
+        frameWrapper.style.position = "relative";
+        frameWrapper.style.width = "auto";
+        frameWrapper.style.height = "auto";
+        frameWrapper.style.left = "auto";
+        frameWrapper.style.right = "auto";
+        frameWrapper.style.margin = "0 auto";
+        frameWrapper.style.transformOrigin = "top center";
+      }
+      editor.refresh({ tools: true });
+    } catch {
+      /* ignore workspace errors */
+    }
+  });
 }
 
 function applyZoom(editor: Editor | null, setZoomFn: (z: number) => void, value: number) {
   if (!editor) return;
   const next = Math.max(10, Math.min(400, Math.round(value)));
-  // GrapesJS Canvas.setZoom expects a percentage (e.g. 100 = 100%)
   editor.Canvas.setZoom(next);
+  updateCanvasWorkspace(editor);
   setZoomFn(next);
+}
+
+function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
+  if (!editor) return;
+  requestAnimationFrame(() => {
+    try {
+      updateCanvasWorkspace(editor);
+      const container = editor.getContainer();
+      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
+      editor.Canvas.setZoom(100);
+      setZoomFn(100);
+      if (!canvasEl) return;
+      canvasEl.scrollTop = 0;
+      canvasEl.scrollLeft = Math.max(0, (canvasEl.scrollWidth - canvasEl.clientWidth) / 2);
+      editor.refresh({ tools: true });
+    } catch {
+      /* ignore fit errors */
+    }
+  });
 }
 
 function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
@@ -169,6 +210,7 @@ function EditorPage() {
         container: ref.current,
         height: "100%",
         width: "auto",
+        canvas: { scrollableCanvas: true },
         storageManager: false,
         fromElement: false,
         panels: { defaults: [] },
@@ -203,13 +245,16 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
-  editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
+      editor.on("canvas:frame:load:body", () => {
+        updateCanvasWorkspace(editor);
+        applyZoom(editor, setZoom, Number(editor.Canvas.getZoom()) || 100);
+      });
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
       });
       editorRef.current = editor;
-      fitEditorCanvas(editor);
+      fitToViewport(editor, setZoom);
     })();
     return () => { mounted = false; editorRef.current?.destroy(); };
   }, [id]);
@@ -244,7 +289,7 @@ function EditorPage() {
     ed.setComponents(data.html || BLANK_CANVAS);
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
-    fitEditorCanvas(ed);
+    fitToViewport(ed, setZoom);
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
     setFigmaRef(data.figma_design_reference_url || null);
@@ -327,7 +372,7 @@ function EditorPage() {
   function setDevice(d: "Desktop" | "Mobile") {
     setDeviceState(d);
     editorRef.current?.setDevice(d);
-    fitEditorCanvas(editorRef.current);
+    fitToViewport(editorRef.current, setZoom);
   }
 
   return (
