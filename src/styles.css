@@ -168,8 +168,20 @@
 .gjs-pn-btn.gjs-pn-active, .gjs-pn-btn:hover { color: #c8f000 !important; }
 .gjs-sm-sector .gjs-sm-title, .gjs-sm-property .gjs-sm-label { color: #fff !important; font-family: var(--font-display) !important; text-transform: uppercase; letter-spacing: 0.05em; }
 .gjs-field { background: #0a0a0a !important; color: #fff !important; border: 1px solid #2a2a2a !important; border-radius: 3px !important; }
-.gjs-cv-canvas { background: #0a0a0a !important; width: 100% !important; height: 100% !important; overflow: auto !important; }
-.gjs-frame-wrapper { transform-origin: top left !important; }
+.gjs-cv-canvas {
+  background: #0a0a0a !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: auto !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+}
+.gjs-frame-wrapper {
+  transform-origin: top left !important;
+  align-self: flex-start !important;
+  margin-top: 0 !important;
+}
 .gjs-frame { border: 0 !important; display: block !important; transform-origin: top left !important; }
 
 /* Skeleton shimmer for loading states */
