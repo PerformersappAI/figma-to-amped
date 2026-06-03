@@ -237,6 +237,9 @@ function EditorPage() {
   const [leftTab, setLeftTab] = useState<LeftTab>("pages");
   const [seoTab, setSeoTab] = useState<SeoSubTab>("seo");
   const [zoom, setZoom] = useState(100);
+  const currentZoomRef = useRef(100);
+  useEffect(() => { currentZoomRef.current = zoom; }, [zoom]);
+
   const [seo, setSeo] = useState<any>({
     title: "", description: "", ogTitle: "", ogDescription: "", canonical: "", robots: "index,follow",
     schemaType: "Organization", bizName: "", bizUrl: "", bizDescription: "", phone: "", address: "",
