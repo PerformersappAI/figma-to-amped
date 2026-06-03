@@ -334,10 +334,14 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
+      let didInitialFit = false;
       editor.on("canvas:frame:load:body", () => {
         updateCanvasWorkspace(editor);
         enableComponentDragging(editor);
-        fitToViewport(editor, setZoom);
+        if (!didInitialFit) {
+          didInitialFit = true;
+          fitToViewport(editor, setZoom);
+        }
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
