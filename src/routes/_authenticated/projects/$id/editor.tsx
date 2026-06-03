@@ -126,10 +126,25 @@ function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
   requestAnimationFrame(() => {
     try {
       updateCanvasWorkspace(editor);
-      applyZoom(editor, setZoomFn, 100);
       const container = editor.getContainer();
       const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      if (!canvasEl) return;
+      const frame = container?.querySelector<HTMLElement>(".gjs-frame");
+      if (!canvasEl || !frame) {
+        applyZoom(editor, setZoomFn, 100);
+        return;
+      }
+      // Measure intrinsic content width from the iframe body
+      const doc = editor.Canvas.getDocument();
+      const contentW =
+        Number(frame.dataset.baseWidth) ||
+        Math.max(
+          frame.offsetWidth,
+          doc?.body?.scrollWidth || 0,
+          doc?.documentElement?.scrollWidth || 0,
+        );
+      const available = canvasEl.clientWidth - 48; // gutters
+      const scalePct = Math.max(10, Math.min(100, Math.floor((available / contentW) * 100)));
+      applyZoom(editor, setZoomFn, scalePct);
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = Math.max(0, (canvasEl.scrollWidth - canvasEl.clientWidth) / 2);
     } catch {
@@ -137,6 +152,28 @@ function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
     }
   });
 }
+
+function enableComponentDragging(editor: Editor | null) {
+  if (!editor) return;
+  try {
+    const walk = (comp: any) => {
+      comp.set({
+        draggable: true,
+        droppable: true,
+        hoverable: true,
+        selectable: true,
+        removable: true,
+        copyable: true,
+        editable: true,
+      });
+      comp.components().each((c: any) => walk(c));
+    };
+    editor.getWrapper()?.components().each((c: any) => walk(c));
+  } catch {
+    /* ignore */
+  }
+}
+
 
 function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
   applyZoom(editor, setZoomFn, current + 10);
@@ -212,6 +249,8 @@ function EditorPage() {
         height: "100%",
         width: "auto",
         canvas: { scrollableCanvas: true },
+        dragMode: "absolute",
+
         storageManager: false,
         fromElement: false,
         panels: { defaults: [] },
@@ -248,8 +287,11 @@ function EditorPage() {
       });
       editor.on("canvas:frame:load:body", () => {
         updateCanvasWorkspace(editor);
-        applyZoom(editor, setZoom, Number(editor.Canvas.getZoom()) || 100);
+        enableComponentDragging(editor);
+        fitToViewport(editor, setZoom);
       });
+      editor.on("component:add", () => enableComponentDragging(editor));
+
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
@@ -290,6 +332,7 @@ function EditorPage() {
     ed.setComponents(data.html || BLANK_CANVAS);
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
+    enableComponentDragging(ed);
     fitToViewport(ed, setZoom);
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
