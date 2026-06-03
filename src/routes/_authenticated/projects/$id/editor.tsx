@@ -210,12 +210,13 @@ function enableComponentDragging(editor: Editor | null) {
 
 
 function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
-  applyZoom(editor, setZoomFn, current + 10);
+  applyZoom(editor, setZoomFn, current + 10, { resetScroll: true });
 }
 
 function zoomOut(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
-  applyZoom(editor, setZoomFn, current - 10);
+  applyZoom(editor, setZoomFn, current - 10, { resetScroll: true });
 }
+
 
 
 function EditorPage() {
