@@ -105,6 +105,7 @@ function EditorPage() {
   const [device, setDeviceState] = useState<"Desktop" | "Mobile">("Desktop");
   const [leftTab, setLeftTab] = useState<LeftTab>("pages");
   const [seoTab, setSeoTab] = useState<SeoSubTab>("seo");
+  const [zoom, setZoom] = useState(100);
   const [seo, setSeo] = useState<any>({
     title: "", description: "", ogTitle: "", ogDescription: "", canonical: "", robots: "index,follow",
     schemaType: "Organization", bizName: "", bizUrl: "", bizDescription: "", phone: "", address: "",
