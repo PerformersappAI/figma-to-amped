@@ -7,6 +7,7 @@ import {
   Minus, Video, FormInput, MessageSquareQuote, Megaphone, FileText, Bot,
   HelpCircle, Search, Share2, UserPlus, Lightbulb, Star, BarChart3, Zap,
   Layers, Globe, Figma, X, FileText as PageIcon, Home, Plus, MoreVertical,
+  ZoomIn, ZoomOut,
 } from "lucide-react";
 import grapesjs, { Editor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
@@ -88,6 +89,20 @@ function fitEditorCanvas(editor: Editor | null) {
   }
 }
 
+function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void) {
+  if (!editor) return;
+  const next = Math.min(200, Math.round((editor.Canvas.getZoom() + 0.1) * 100));
+  editor.Canvas.setZoom(next / 100);
+  setZoomFn(next);
+}
+
+function zoomOut(editor: Editor | null, setZoomFn: (z: number) => void) {
+  if (!editor) return;
+  const next = Math.max(20, Math.round((editor.Canvas.getZoom() - 0.1) * 100));
+  editor.Canvas.setZoom(next / 100);
+  setZoomFn(next);
+}
+
 function EditorPage() {
   const { id } = Route.useParams();
   const nav = useNavigate();
@@ -104,6 +119,7 @@ function EditorPage() {
   const [device, setDeviceState] = useState<"Desktop" | "Mobile">("Desktop");
   const [leftTab, setLeftTab] = useState<LeftTab>("pages");
   const [seoTab, setSeoTab] = useState<SeoSubTab>("seo");
+  const [zoom, setZoom] = useState(100);
   const [seo, setSeo] = useState<any>({
     title: "", description: "", ogTitle: "", ogDescription: "", canonical: "", robots: "index,follow",
     schemaType: "Organization", bizName: "", bizUrl: "", bizDescription: "", phone: "", address: "",
@@ -185,7 +201,8 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
-      editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
+  editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
+      editor.on("canvas:zoom", (ev: any) => setZoom(Math.round((ev.value || 1) * 100)));
       editorRef.current = editor;
       fitEditorCanvas(editor);
     })();
@@ -324,6 +341,10 @@ function EditorPage() {
           <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
           <DeviceBtn active={device === "Desktop"} onClick={() => setDevice("Desktop")} icon={<Monitor size={14} />} label="Desktop" />
           <DeviceBtn active={device === "Mobile"} onClick={() => setDevice("Mobile")} icon={<Smartphone size={14} />} label="Mobile" />
+          <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
+          <button onClick={() => zoomOut(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom out"><ZoomOut size={16} /></button>
+          <span className="font-display text-[10px] text-[#888] min-w-[32px] text-center">{zoom}%</span>
+          <button onClick={() => zoomIn(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
