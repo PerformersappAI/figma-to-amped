@@ -14,11 +14,10 @@ export default function CanvasEditor() {
   const computeFitScale = useCallback(() => {
     const el = canvasRef.current;
     if (!el) return 1;
-    const padding = 32;
-    const availableW = el.clientWidth - padding;
-    const availableH = el.clientHeight - padding;
+    const availableW = el.clientWidth;
+    const availableH = el.clientHeight;
     const s = Math.min(availableW / IFRAME_WIDTH, availableH / IFRAME_HEIGHT);
-    return Math.max(0.05, Math.min(s, 1));
+    return Math.max(0.05, s);
   }, []);
 
   const fitToScreen = useCallback(() => {
