@@ -381,6 +381,10 @@ function EditorPage() {
           `;
           doc.head.appendChild(style);
         } catch { /* ignore */ }
+        try {
+          editorRef.current?.Canvas.getFrameEl()?.contentWindow?.scrollTo(0, 0);
+          editorRef.current?.Canvas.getFrames().forEach((f: any) => f.view?.el?.scrollTo?.(0, 0));
+        } catch { /* ignore */ }
       });
       let didInitialFit = false;
       editor.on("canvas:frame:load:body", () => {
