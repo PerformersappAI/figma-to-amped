@@ -204,7 +204,10 @@ function EditorPage() {
         } catch { /* ignore */ }
       });
   editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
-      editor.on("canvas:zoom", (ev: any) => setZoom(Math.round((ev.value || 1) * 100)));
+      editor.on("canvas:zoom", () => {
+        const z = Number(editor.Canvas.getZoom()) || 100;
+        setZoom(Math.round(z));
+      });
       editorRef.current = editor;
       fitEditorCanvas(editor);
     })();
