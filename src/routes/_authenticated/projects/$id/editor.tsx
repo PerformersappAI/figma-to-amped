@@ -520,9 +520,9 @@ function EditorPage() {
               const v = Number(e.target.value);
               if (Number.isFinite(v)) setZoom(v);
             }}
-            onBlur={(e) => applyZoom(editorRef.current, setZoom, Number(e.target.value) || 100)}
+            onBlur={(e) => applyZoom(editorRef.current, setZoom, Number(e.target.value) || 100, { resetScroll: true })}
             onKeyDown={(e) => {
-              if (e.key === "Enter") applyZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100);
+              if (e.key === "Enter") applyZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100, { resetScroll: true });
             }}
             className="w-14 bg-transparent border border-[#2a2a2a] rounded text-white text-center text-[11px] py-1 focus:outline-none focus:border-[var(--accent)]"
             title="Zoom %"
