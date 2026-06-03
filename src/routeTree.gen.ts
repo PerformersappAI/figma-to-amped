@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as CanvasEditorRouteImport } from './routes/canvas-editor'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewProjectIdRouteImport } from './routes/preview.$projectId'
@@ -40,6 +41,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CanvasEditorRoute = CanvasEditorRouteImport.update({
+  id: '/canvas-editor',
+  path: '/canvas-editor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -147,6 +153,7 @@ const AuthenticatedProjectsIdEditorRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/canvas-editor': typeof CanvasEditorRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/canvas-editor': typeof CanvasEditorRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/canvas-editor': typeof CanvasEditorRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/canvas-editor'
     | '/login'
     | '/onboarding'
     | '/admin'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/canvas-editor'
     | '/login'
     | '/onboarding'
     | '/admin'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/canvas-editor'
     | '/login'
     | '/onboarding'
     | '/_authenticated/admin'
@@ -292,6 +304,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  CanvasEditorRoute: typeof CanvasEditorRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
@@ -322,6 +335,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/canvas-editor': {
+      id: '/canvas-editor'
+      path: '/canvas-editor'
+      fullPath: '/canvas-editor'
+      preLoaderRoute: typeof CanvasEditorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -501,6 +521,7 @@ const PreviewProjectIdRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  CanvasEditorRoute: CanvasEditorRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
