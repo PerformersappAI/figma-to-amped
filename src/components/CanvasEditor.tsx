@@ -16,7 +16,9 @@ export default function CanvasEditor() {
     if (!el) return 1;
     const availableW = el.clientWidth;
     const availableH = el.clientHeight;
-    const s = Math.min(availableW / IFRAME_WIDTH, availableH / IFRAME_HEIGHT);
+    // Fill the viewport edge-to-edge: scale up so the frame covers the
+    // available area on at least one axis (whichever needs more zoom).
+    const s = Math.max(availableW / IFRAME_WIDTH, availableH / IFRAME_HEIGHT);
     return Math.max(0.05, s);
   }, []);
 
@@ -108,17 +110,15 @@ export default function CanvasEditor() {
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="relative flex-1 overflow-hidden bg-[#1a1a1a]"
+        className="relative flex-1 min-h-0 w-full overflow-hidden bg-[#1a1a1a]"
       >
         {loadedUrl ? (
           <div
-            className="absolute"
             style={{
-              left: "50%",
-              top: "50%",
+              position: "absolute",
+              inset: 0,
               width: scaledW,
               height: scaledH,
-              transform: "translate(-50%, -50%)",
             }}
           >
             <div
@@ -127,7 +127,6 @@ export default function CanvasEditor() {
                 height: IFRAME_HEIGHT,
                 transform: `scale(${scale})`,
                 transformOrigin: "top left",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
                 background: "#fff",
               }}
             >
