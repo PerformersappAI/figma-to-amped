@@ -246,13 +246,13 @@ function EditorPage() {
           doc.head.appendChild(style);
         } catch { /* ignore */ }
       });
-  editor.on("canvas:frame:load:body", () => fitEditorCanvas(editor));
+  editor.on("canvas:frame:load:body", () => updateCanvasWorkspace(editor));
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
       });
       editorRef.current = editor;
-      fitEditorCanvas(editor);
+      fitToViewport(editor, setZoom);
     })();
     return () => { mounted = false; editorRef.current?.destroy(); };
   }, [id]);
@@ -287,7 +287,7 @@ function EditorPage() {
     ed.setComponents(data.html || BLANK_CANVAS);
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
-    fitEditorCanvas(ed);
+    fitToViewport(ed, setZoom);
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
     setFigmaRef(data.figma_design_reference_url || null);
@@ -370,7 +370,7 @@ function EditorPage() {
   function setDevice(d: "Desktop" | "Mobile") {
     setDeviceState(d);
     editorRef.current?.setDevice(d);
-    fitEditorCanvas(editorRef.current);
+    fitToViewport(editorRef.current, setZoom);
   }
 
   return (
