@@ -78,31 +78,9 @@ function updateCanvasWorkspace(editor: Editor | null) {
       const container = editor.getContainer();
       if (!container) return;
       const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const framesEl = container.querySelector<HTMLElement>(".gjs-cv-canvas__frames");
-      const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
       if (canvasEl) {
         canvasEl.style.overflow = "auto";
-        canvasEl.style.padding = "32px";
-        canvasEl.style.boxSizing = "border-box";
         canvasEl.style.background = "#0a0a0a";
-      }
-      if (framesEl) {
-        framesEl.style.position = "relative";
-        framesEl.style.display = "flex";
-        framesEl.style.justifyContent = "center";
-        framesEl.style.alignItems = "flex-start";
-        framesEl.style.width = "max-content";
-        framesEl.style.minWidth = "100%";
-        framesEl.style.minHeight = "100%";
-      }
-      if (frameWrapper) {
-        frameWrapper.style.position = "relative";
-        frameWrapper.style.width = "auto";
-        frameWrapper.style.height = "auto";
-        frameWrapper.style.left = "auto";
-        frameWrapper.style.right = "auto";
-        frameWrapper.style.margin = "0 auto";
-        frameWrapper.style.transformOrigin = "top center";
       }
       editor.refresh({ tools: true });
     } catch {
@@ -110,6 +88,7 @@ function updateCanvasWorkspace(editor: Editor | null) {
     }
   });
 }
+
 
 function applyZoom(editor: Editor | null, setZoomFn: (z: number) => void, value: number) {
   if (!editor) return;
