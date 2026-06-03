@@ -89,6 +89,20 @@ function fitEditorCanvas(editor: Editor | null) {
   }
 }
 
+function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void) {
+  if (!editor) return;
+  const next = Math.min(200, Math.round((editor.Canvas.getZoom() + 0.1) * 100));
+  editor.Canvas.setZoom(next / 100);
+  setZoomFn(next);
+}
+
+function zoomOut(editor: Editor | null, setZoomFn: (z: number) => void) {
+  if (!editor) return;
+  const next = Math.max(20, Math.round((editor.Canvas.getZoom() - 0.1) * 100));
+  editor.Canvas.setZoom(next / 100);
+  setZoomFn(next);
+}
+
 function EditorPage() {
   const { id } = Route.useParams();
   const nav = useNavigate();
