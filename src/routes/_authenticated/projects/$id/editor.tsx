@@ -143,7 +143,7 @@ function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
           doc?.documentElement?.scrollWidth || 0,
         );
       const available = canvasEl.clientWidth - 48; // gutters
-      const scalePct = Math.max(10, Math.min(100, Math.floor((available / contentW) * 100)));
+      const scalePct = Math.max(10, Math.min(400, Math.floor((available / contentW) * 100)));
       applyZoom(editor, setZoomFn, scalePct);
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = Math.max(0, (canvasEl.scrollWidth - canvasEl.clientWidth) / 2);
