@@ -299,8 +299,23 @@ function EditorPage() {
       });
       editorRef.current = editor;
       fitToViewport(editor, setZoom);
+
+      // Refit when the workspace container resizes
+      const workspaceEl = ref.current?.parentElement;
+      let rafId = 0;
+      const ro = workspaceEl ? new ResizeObserver(() => {
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => fitToViewport(editor, setZoom));
+      }) : null;
+      if (ro && workspaceEl) ro.observe(workspaceEl);
+      resizeObserverRef.current = ro;
     })();
-    return () => { mounted = false; editorRef.current?.destroy(); };
+    return () => {
+      mounted = false;
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+      editorRef.current?.destroy();
+    };
   }, [id]);
 
   async function saveActivePage(showToast = false) {
