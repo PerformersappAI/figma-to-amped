@@ -90,41 +90,42 @@ function updateCanvasWorkspace(editor: Editor | null) {
 }
 
 
-function applyZoom(editor: Editor | null, setZoomFn: (z: number) => void, value: number) {
+// Stable per-editor measurements. fitScale is the iframe-scale at which
+// the page exactly fills the workspace width — the user's "100%".
+const baseWidthRef = { current: 0 };
+const baseHeightRef = { current: 0 };
+const fitScaleRef = { current: 1 };
+
+function applyZoom(
+  editor: Editor | null,
+  setZoomFn: (z: number) => void,
+  value: number,
+  opts: { resetScroll?: boolean } = {},
+) {
   if (!editor) return;
   const next = Math.max(10, Math.min(400, Math.round(value)));
-  const scale = next / 100;
+  const effective = (next / 100) * (fitScaleRef.current || 1);
   try {
     const container = editor.getContainer();
     if (!container) return;
     const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
     const frame = container.querySelector<HTMLElement>(".gjs-frame");
+    const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
     if (frame) {
-      const doc = editor.Canvas.getDocument();
-      const intrinsicW = Math.max(
-        frame.offsetWidth,
-        doc?.body?.scrollWidth || 0,
-        doc?.documentElement?.scrollWidth || 0,
-      );
-      const intrinsicH = Math.max(
-        frame.offsetHeight,
-        doc?.body?.scrollHeight || 0,
-        doc?.documentElement?.scrollHeight || 0,
-      );
-      const baseW = Number(frame.dataset.baseWidth) || intrinsicW;
-      const baseH = Number(frame.dataset.baseHeight) || intrinsicH;
-      if (!frame.dataset.baseWidth) {
-        frame.dataset.baseWidth = String(baseW);
-        frame.dataset.baseHeight = String(baseH);
-      }
+      const baseW = baseWidthRef.current || frame.offsetWidth;
+      const baseH = baseHeightRef.current || frame.offsetHeight;
       frame.style.width = `${baseW}px`;
       frame.style.height = `${baseH}px`;
       frame.style.transformOrigin = "top left";
-      frame.style.transform = `scale(${scale})`;
+      frame.style.transform = `scale(${effective})`;
       if (frameWrapper) {
-        frameWrapper.style.width = `${baseW * scale}px`;
-        frameWrapper.style.height = `${baseH * scale}px`;
+        frameWrapper.style.width = `${baseW * effective}px`;
+        frameWrapper.style.height = `${baseH * effective}px`;
       }
+    }
+    if (opts.resetScroll && canvasEl) {
+      canvasEl.scrollTop = 0;
+      canvasEl.scrollLeft = 0;
     }
     editor.refresh({ tools: true });
   } catch {
@@ -133,40 +134,57 @@ function applyZoom(editor: Editor | null, setZoomFn: (z: number) => void, value:
   setZoomFn(next);
 }
 
-function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
-  if (!editor) return;
-  requestAnimationFrame(() => {
-    try {
-      updateCanvasWorkspace(editor);
-      const container = editor.getContainer();
-      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frame = container?.querySelector<HTMLElement>(".gjs-frame");
-      if (!canvasEl || !frame) {
-        applyZoom(editor, setZoomFn, 100);
-        return;
-      }
-      // Always remeasure content width from the live iframe body so we fit
-      // the actual page, not a stale cached value.
-      const doc = editor.Canvas.getDocument();
+// Measure the page's intrinsic width/height ONCE and compute the fit scale
+// for the current workspace width. Does NOT change the user's zoom %.
+function recomputeFitScale(editor: Editor | null): boolean {
+  if (!editor) return false;
+  try {
+    updateCanvasWorkspace(editor);
+    const container = editor.getContainer();
+    const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
+    const frame = container?.querySelector<HTMLElement>(".gjs-frame");
+    if (!canvasEl || !frame) return false;
+    const doc = editor.Canvas.getDocument();
+    // If base width is unset, capture it now from the live document.
+    if (!baseWidthRef.current) {
       const contentW = Math.max(
         320,
         doc?.body?.scrollWidth || 0,
         doc?.documentElement?.scrollWidth || 0,
         frame.offsetWidth,
       );
-      // Reset cached base width so applyZoom uses the fresh measurement.
-      delete frame.dataset.baseWidth;
-      delete frame.dataset.baseHeight;
-      const available = canvasEl.clientWidth;
-      const scalePct = Math.max(10, Math.min(400, Math.floor((available / contentW) * 100)));
-      applyZoom(editor, setZoomFn, scalePct);
-      canvasEl.scrollTop = 0;
-      canvasEl.scrollLeft = 0;
-    } catch {
-      /* ignore fit errors */
+      const contentH = Math.max(
+        320,
+        doc?.body?.scrollHeight || 0,
+        doc?.documentElement?.scrollHeight || 0,
+        frame.offsetHeight,
+      );
+      baseWidthRef.current = contentW;
+      baseHeightRef.current = contentH;
+    }
+    const available = canvasEl.clientWidth;
+    if (available <= 0) return false;
+    fitScaleRef.current = Math.max(0.1, Math.min(4, available / baseWidthRef.current));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
+  if (!editor) return;
+  requestAnimationFrame(() => {
+    // Reset measurements so we capture a fresh base width for this page.
+    baseWidthRef.current = 0;
+    baseHeightRef.current = 0;
+    if (recomputeFitScale(editor)) {
+      applyZoom(editor, setZoomFn, 100, { resetScroll: true });
+    } else {
+      applyZoom(editor, setZoomFn, 100, { resetScroll: true });
     }
   });
 }
+
 
 
 function enableComponentDragging(editor: Editor | null) {

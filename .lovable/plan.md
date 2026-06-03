@@ -1,87 +1,63 @@
-## Goal
+## Problem
 
-Make the GrapesJS canvas in the project editor span the full center workspace (between the left Pages/Blocks sidebar and the right Style Manager) and auto-fit the page width on load and when the window resizes, so the user sees the whole site at a glance and can scroll vertically through it like a real browser window.
+In the editor, "100%" is being treated as the iframe's intrinsic pixel width (e.g. 1440px). When the workspace is narrower than that, the iframe overflows — the top/sides of the site get cut off and the canvas scrolls to the middle, so the page header is hidden (screenshots 2 + 5). Pressing + / − rescales the iframe but also forces `fitToViewport` to re-measure mid-zoom, which sometimes catches a stale scrollHeight while the body is still re-laying out. That makes the canvas snap to a different scroll position and look like it jumped to "another page" (screenshots 1, 3, 4).
 
-## What's wrong today
+Two root causes in `src/routes/_authenticated/projects/$id/editor.tsx`:
 
-In `src/routes/_authenticated/projects/$id/editor.tsx`:
+1. `applyZoom` and `fitToViewport` both write to `frame.style.width/height` and `transform: scale()`, and `fitToViewport` keeps re-running on every `ResizeObserver` tick and on a 300ms + 1200ms timer after load. That feedback loop is what causes the visual "jumping" while you click the zoom buttons.
+2. The zoom number in the toolbar is the raw scale factor. When the workspace is 900px wide and the page is 1440px wide, "100%" literally renders at 1440px — wider than the workspace — so the top-left corner sits offscreen.
 
-1. The GrapesJS iframe (`.gjs-frame`) keeps an intrinsic pixel width (1440px for desktop). When the workspace is wider than that, the iframe still renders at 1440px and sits in the top-left of the workspace, leaving a large empty strip on the right (the red arrow in your screenshot).
-2. The injected canvas body CSS uses `display:flex; justify-content:center; padding:24px` plus `body > * { flex: 0 0 auto; ... }`. That locks each section to its original Figma width and prevents stretching to fill the workspace.
-3. `fitToViewport` only runs once on first body load. When the browser window resizes (or the right Style Manager mounts and changes available width), the canvas does not refit, so the page stays small on the left.
-4. The 78% zoom in the first screenshot is `fitToViewport` computing scale against a tiny canvas width measured before the workspace had finished laying out.
+## Fix (presentation-only, no business logic)
 
-## Fix
+Edit only `src/routes/_authenticated/projects/$id/editor.tsx`.
 
-Edit only the editor route file and `src/styles.css` (presentation only, no business logic changes).
+### 1. Redefine 100% as "fit width"
 
-### 1. Stretch the GrapesJS canvas to fill the workspace
+Track two numbers in state:
 
-In `src/styles.css`, replace the current `.gjs-cv-canvas` / `.gjs-frame-wrapper` / `.gjs-frame` overrides with:
+- `fitScale` — the scale at which the page exactly fills the workspace width (computed once per load and on workspace resize).
+- `zoom` — the user-visible percentage where `100` means `fitScale` and `200` means `2 × fitScale`.
 
-```css
-.gjs-cv-canvas {
-  background: #0a0a0a !important;
-  width: 100% !important;
-  height: 100% !important;
-  overflow: auto !important;
-}
-.gjs-frame-wrapper { width: 100% !important; max-width: none !important; }
-.gjs-frame {
-  width: 100% !important;
-  max-width: none !important;
-  min-height: 100% !important;
-  border: 0 !important;
-  display: block !important;
-}
+`applyZoom(editor, pct)` becomes:
+
+```ts
+const effective = (pct / 100) * fitScaleRef.current;
+frame.style.transform = `scale(${effective})`;
+frameWrapper.style.width  = `${baseW * effective}px`;
+frameWrapper.style.height = `${baseH * effective}px`;
 ```
 
-This removes the hard pixel width on the iframe and lets it expand to the workspace.
+Result: 100% always shows the whole site width in the workspace (matches the user's "Fit to editor" choice), and +/− zoom from there without ever clipping the top.
 
-### 2. Stop centering / clipping content inside the iframe
+### 2. Compute `fitScale` from a stable base width
 
-In `editor.on("load", ...)` (around line 273), change the injected `<style data-figmaship-canvas="1">` to:
+Measure the content width ONCE per page-load, after `canvas:frame:load:body` has fired and after a single `requestAnimationFrame` settle:
 
-```css
-html, body { margin: 0; background: #fff; min-height: 100%; }
-body { width: 100%; overflow-x: hidden; }
-body > * { max-width: 100% !important; }
-img, video { max-width: 100%; height: auto; }
+```ts
+const contentW = Math.max(doc.body.scrollWidth, doc.documentElement.scrollWidth, frame.offsetWidth);
+baseWidthRef.current = contentW;            // never overwritten by zoom
+fitScaleRef.current  = canvasEl.clientWidth / contentW;
+applyZoom(editor, 100);                     // 100% = fit
 ```
 
-This drops the flex/centering rules so each section fills the iframe width and the page scrolls vertically like a normal browser window.
+Stop deleting `frame.dataset.baseWidth` on every zoom. The base width is the intrinsic page width, not a function of the current scale.
 
-### 3. Refit and rescale when the workspace resizes
+### 3. Tame the ResizeObserver
 
-In the editor `useEffect`, after the editor is initialized, attach a `ResizeObserver` on the workspace `div` (the parent of `ref.current`) that calls `fitToViewport(editor, setZoom)` on every size change (debounced via `requestAnimationFrame`). Tear it down in the cleanup callback alongside `editor.destroy()`.
+Replace the current ResizeObserver that calls `fitToViewport` on every tick with one that only recomputes `fitScale` (and only when the workspace width actually changes by more than 4px). It must NOT change the user's chosen zoom; if the user is at 100% it just rescales to fit the new width, if they're at 150% it stays 150% of the new fit. Drop both `setTimeout(..., 300)` and `setTimeout(..., 1200)` post-load refits — they're what's causing mid-interaction "jumps". One refit after `canvas:frame:load:body` is enough.
 
-Also call `fitToViewport` once more after `editor.on("load", ...)` so the first measurement happens after the body has injected styles, not before.
+### 4. Reset scroll to top on zoom
 
-### 4. Loosen the `fitToViewport` width clamp
+After every `applyZoom`, set `canvasEl.scrollTop = 0` only when zoom changes via the toolbar (not on ResizeObserver fit). This guarantees the header is visible after the user zooms in/out, matching their expectation.
 
-In `fitToViewport` (line 124) the `scalePct` is currently capped at `100`. Raise that cap to `400` (matching `applyZoom`) so when the workspace is wider than the content the canvas zooms up to fill it instead of staying at 100% in the top-left corner.
+### 5. Restore the workspace container
 
-### 5. Confirm the workspace container
-
-The center column at line 525 should remain:
-
-```tsx
-<div className="flex-1 min-w-0 relative"
-  style={{ flex: 1, position: "relative", overflow: "hidden",
-           minWidth: 0, maxWidth: "none", width: "100%",
-           height: "100%", background: "#0a0a0a" }}>
-  <div ref={ref} style={{ position: "absolute", inset: 0 }} />
-  ...
-```
-
-Switch the inner workspace from `overflowY: "auto"` back to `overflow: "hidden"` — GrapesJS handles its own scrolling on `.gjs-cv-canvas`, and a second scrollbar on the outer div is what produced the duplicated scroll behavior you saw.
+Lines 561–562 currently have `overflowY: "auto"` on the wrapper plus `position: absolute; inset: 0` on the inner `ref` div. With GrapesJS handling its own scroll on `.gjs-cv-canvas`, the outer `overflowY: "auto"` adds a second scrollbar that scrolls the iframe out of view. Switch the wrapper to `overflow: "hidden"` and leave the inner div as `position: absolute; inset: 0`.
 
 ## Files changed
 
-- `src/routes/_authenticated/projects/$id/editor.tsx` — canvas-body CSS, ResizeObserver, fit clamp, workspace overflow
-- `src/styles.css` — `.gjs-frame` / `.gjs-cv-canvas` width rules
+- `src/routes/_authenticated/projects/$id/editor.tsx` — zoom math (`applyZoom`, `fitToViewport`), `useEffect` ResizeObserver, removal of the 300/1200ms refits, workspace `overflow`.
 
 ## Out of scope
 
-- No changes to Pages, Blocks, Layers, SEO sidebars, top toolbar, save/publish flow, or any data/business logic.
-- No layout changes to the right Style Manager panel beyond what naturally results from the canvas filling the remaining space.
+No changes to data loading, page CRUD, save/publish, Style Manager, Pages/Blocks/Layers/SEO sidebars, or `src/styles.css`.
