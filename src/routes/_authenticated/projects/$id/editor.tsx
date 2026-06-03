@@ -93,8 +93,31 @@ function updateCanvasWorkspace(editor: Editor | null) {
 function applyZoom(editor: Editor | null, setZoomFn: (z: number) => void, value: number) {
   if (!editor) return;
   const next = Math.max(10, Math.min(400, Math.round(value)));
-  editor.Canvas.setZoom(next);
-  updateCanvasWorkspace(editor);
+  const scale = next / 100;
+  try {
+    const container = editor.getContainer();
+    if (!container) return;
+    const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
+    const frame = container.querySelector<HTMLElement>(".gjs-frame");
+    if (frame) {
+      // capture intrinsic size once so repeated zooms don't compound
+      const baseW = Number(frame.dataset.baseWidth) || frame.offsetWidth;
+      const baseH = Number(frame.dataset.baseHeight) || frame.offsetHeight;
+      if (!frame.dataset.baseWidth) {
+        frame.dataset.baseWidth = String(baseW);
+        frame.dataset.baseHeight = String(baseH);
+      }
+      frame.style.transformOrigin = "top left";
+      frame.style.transform = `scale(${scale})`;
+      if (frameWrapper) {
+        frameWrapper.style.width = `${baseW * scale}px`;
+        frameWrapper.style.height = `${baseH * scale}px`;
+      }
+    }
+    editor.refresh({ tools: true });
+  } catch {
+    /* ignore zoom errors */
+  }
   setZoomFn(next);
 }
 
@@ -103,14 +126,12 @@ function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
   requestAnimationFrame(() => {
     try {
       updateCanvasWorkspace(editor);
+      applyZoom(editor, setZoomFn, 100);
       const container = editor.getContainer();
       const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      editor.Canvas.setZoom(100);
-      setZoomFn(100);
       if (!canvasEl) return;
       canvasEl.scrollTop = 0;
       canvasEl.scrollLeft = Math.max(0, (canvasEl.scrollWidth - canvasEl.clientWidth) / 2);
-      editor.refresh({ tools: true });
     } catch {
       /* ignore fit errors */
     }
@@ -124,6 +145,7 @@ function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void, current: 
 function zoomOut(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
   applyZoom(editor, setZoomFn, current - 10);
 }
+
 
 function EditorPage() {
   const { id } = Route.useParams();
