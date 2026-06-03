@@ -16,7 +16,9 @@ export default function CanvasEditor() {
     if (!el) return 1;
     const availableW = el.clientWidth;
     const availableH = el.clientHeight;
-    const s = Math.min(availableW / IFRAME_WIDTH, availableH / IFRAME_HEIGHT);
+    // Fill the viewport edge-to-edge: scale up so the frame covers the
+    // available area on at least one axis (whichever needs more zoom).
+    const s = Math.max(availableW / IFRAME_WIDTH, availableH / IFRAME_HEIGHT);
     return Math.max(0.05, s);
   }, []);
 
