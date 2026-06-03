@@ -1,56 +1,87 @@
-# Fix editor layout: center page + resolve overlapping logo
+## Goal
 
-Two separate issues are visible in the screenshot:
+Make the GrapesJS canvas in the project editor span the full center workspace (between the left Pages/Blocks sidebar and the right Style Manager) and auto-fit the page width on load and when the window resizes, so the user sees the whole site at a glance and can scroll vertically through it like a real browser window.
 
-1. **Page is not centered in the editor canvas.** The Figma frame is 1440px wide and the GrapesJS iframe body has no centering, so the page sits flush-left and gets clipped on the right (logo touches the sidebar, no breathing room, no scroll).
-2. **The wave logo and "EANWIDE OUTFITTERS" wordmark overlap.** In Figma these two layers are intentionally arranged because one of them is a clipping/alpha mask on the wordmark. Our converter ignores `isMask` / `MASK` layers entirely, so both render at full size and stack on top of each other.
+## What's wrong today
 
-Neither is a backend / pipeline issue — both fixes live in the deterministic converter and the editor shell. No re-fetch from Figma is needed; existing pages just need to be re-rendered (Step 3) via the existing retry path, and the editor change is live for any open project.
+In `src/routes/_authenticated/projects/$id/editor.tsx`:
 
-## Scope
+1. The GrapesJS iframe (`.gjs-frame`) keeps an intrinsic pixel width (1440px for desktop). When the workspace is wider than that, the iframe still renders at 1440px and sits in the top-left of the workspace, leaving a large empty strip on the right (the red arrow in your screenshot).
+2. The injected canvas body CSS uses `display:flex; justify-content:center; padding:24px` plus `body > * { flex: 0 0 auto; ... }`. That locks each section to its original Figma width and prevents stretching to fill the workspace.
+3. `fitToViewport` only runs once on first body load. When the browser window resizes (or the right Style Manager mounts and changes available width), the canvas does not refit, so the page stays small on the left.
+4. The 78% zoom in the first screenshot is `fitToViewport` computing scale against a tiny canvas width measured before the workspace had finished laying out.
 
-### 1. Center the page inside the GrapesJS canvas
-File: `src/routes/_authenticated/projects/$id/editor.tsx`
+## Fix
 
-After `grapesjs.init({...})`, inject a stylesheet into the canvas iframe so that:
+Edit only the editor route file and `src/styles.css` (presentation only, no business logic changes).
 
-- `html, body { margin: 0; background: #2a2a2a; min-height: 100%; }`
-- `body { display: flex; justify-content: center; align-items: flex-start; padding: 24px; box-sizing: border-box; overflow-x: auto; }`
-- `body > * { flex: 0 0 auto; box-shadow: 0 8px 40px rgba(0,0,0,0.4); background: #fff; }`
+### 1. Stretch the GrapesJS canvas to fill the workspace
 
-Use `editor.Canvas.getDocument()` to append a `<style>` tag once the canvas is ready (`editor:load` event). This keeps the converted `<main>` (which we now size to the true frame width, e.g. 1440px) horizontally centered with a dark gutter on each side, and gives a small scroll if the user shrinks the panel. WYSIWYG dragging is unaffected — we only style the iframe chrome, not the page contents.
+In `src/styles.css`, replace the current `.gjs-cv-canvas` / `.gjs-frame-wrapper` / `.gjs-frame` overrides with:
 
-### 2. Honor Figma masks in the converter
-File: `src/lib/figma-convert.ts`
+```css
+.gjs-cv-canvas {
+  background: #0a0a0a !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: auto !important;
+}
+.gjs-frame-wrapper { width: 100% !important; max-width: none !important; }
+.gjs-frame {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100% !important;
+  border: 0 !important;
+  display: block !important;
+}
+```
 
-When walking children in `convertNode`, detect mask layers:
+This removes the hard pixel width on the iframe and lets it expand to the workspace.
 
-- A child node has `isMask === true` (Figma marks the mask layer this way).
-- Or its `type === "BOOLEAN_OPERATION"` with `booleanOperation === "INTERSECT"` acting as a mask wrapper.
+### 2. Stop centering / clipping content inside the iframe
 
-For the simplest correct fix, when iterating `node.children`:
+In `editor.on("load", ...)` (around line 273), change the injected `<style data-figmaship-canvas="1">` to:
 
-- Find the first child with `isMask === true`. The mask layer itself should NOT render as a visible element. Instead:
-  - Drop the mask layer from the output entirely (don't emit its `<img>` / `<div>`).
-  - Apply its bounding box to its parent as `overflow: hidden` clipping (or, if its shape is an ellipse, set `border-radius: 50%` on the parent), so the siblings that were intended to be clipped are visually contained.
-- Subsequent siblings keep rendering normally — they are now clipped by the parent instead of bleeding over the wordmark.
+```css
+html, body { margin: 0; background: #fff; min-height: 100%; }
+body { width: 100%; overflow-x: hidden; }
+body > * { max-width: 100% !important; }
+img, video { max-width: 100%; height: auto; }
+```
 
-This is a minimal, conservative fix: it removes the duplicated wave that overlays the wordmark, and any frame that uses a mask now clips its contents rather than rendering both layers stacked. More sophisticated mask compositing (SVG `<mask>`, `clip-path: path()`) is out of scope.
+This drops the flex/centering rules so each section fills the iframe width and the page scrolls vertically like a normal browser window.
 
-### 3. Re-render existing pages
-No DB migration. The user re-runs the existing retry on the affected page (HP, Mobile, etc.) — `runRenderStep` regenerates HTML/CSS from the cached `figma_node_tree` using the new converter logic. No Figma fetch, no asset re-download, no Claude pass for short HTML.
+### 3. Refit and rescale when the workspace resizes
 
-## Test plan
+In the editor `useEffect`, after the editor is initialized, attach a `ResizeObserver` on the workspace `div` (the parent of `ref.current`) that calls `fitToViewport(editor, setZoom)` on every size change (debounced via `requestAnimationFrame`). Tear it down in the cleanup callback alongside `editor.destroy()`.
 
-1. Re-render the Oceanwide HP page from upload screen.
-2. Open it in the editor: page sits centered in the canvas with dark gutters on each side; resize browser → page scrolls horizontally inside the canvas instead of clipping under the sidebar.
-3. The wave logo and "OCEANWIDE OUTFITTERS" wordmark no longer overlap — only the wordmark (or only the wave, depending on which layer Figma marked as mask) is visible in that slot.
-4. Click any heading or paragraph in the editor — still selectable and draggable in GrapesJS.
-5. Re-render the Contact - Mobile page (375px frame): centered in canvas, narrower gutters, still editable.
+Also call `fitToViewport` once more after `editor.on("load", ...)` so the first measurement happens after the body has injected styles, not before.
+
+### 4. Loosen the `fitToViewport` width clamp
+
+In `fitToViewport` (line 124) the `scalePct` is currently capped at `100`. Raise that cap to `400` (matching `applyZoom`) so when the workspace is wider than the content the canvas zooms up to fill it instead of staying at 100% in the top-left corner.
+
+### 5. Confirm the workspace container
+
+The center column at line 525 should remain:
+
+```tsx
+<div className="flex-1 min-w-0 relative"
+  style={{ flex: 1, position: "relative", overflow: "hidden",
+           minWidth: 0, maxWidth: "none", width: "100%",
+           height: "100%", background: "#0a0a0a" }}>
+  <div ref={ref} style={{ position: "absolute", inset: 0 }} />
+  ...
+```
+
+Switch the inner workspace from `overflowY: "auto"` back to `overflow: "hidden"` — GrapesJS handles its own scrolling on `.gjs-cv-canvas`, and a second scrollbar on the outer div is what produced the duplicated scroll behavior you saw.
+
+## Files changed
+
+- `src/routes/_authenticated/projects/$id/editor.tsx` — canvas-body CSS, ResizeObserver, fit clamp, workspace overflow
+- `src/styles.css` — `.gjs-frame` / `.gjs-cv-canvas` width rules
 
 ## Out of scope
 
-- Anything in the Step 1/2/4 pipeline (Figma fetch, asset processing, Claude cleanup).
-- Any DB schema change.
-- Auto-layout / flexbox refactor of converter output (still using absolute positioning fallback).
-- Full SVG mask compositing.
+- No changes to Pages, Blocks, Layers, SEO sidebars, top toolbar, save/publish flow, or any data/business logic.
+- No layout changes to the right Style Manager panel beyond what naturally results from the canvas filling the remaining space.
