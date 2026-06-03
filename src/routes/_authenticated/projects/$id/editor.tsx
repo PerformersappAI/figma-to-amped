@@ -326,9 +326,6 @@ function EditorPage() {
         updateCanvasWorkspace(editor);
         enableComponentDragging(editor);
         fitToViewport(editor, setZoom);
-        // Refit after images/fonts load so the scale matches the final content width
-        setTimeout(() => fitToViewport(editor, setZoom), 300);
-        setTimeout(() => fitToViewport(editor, setZoom), 1200);
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
@@ -339,16 +336,26 @@ function EditorPage() {
       editorRef.current = editor;
       fitToViewport(editor, setZoom);
 
-      // Refit when the workspace container resizes
+      // When the workspace resizes, recompute the fit scale and re-apply the
+      // user's current zoom % against the new fit — never override their zoom.
       const workspaceEl = ref.current?.parentElement;
       let rafId = 0;
+      let lastWidth = workspaceEl?.clientWidth ?? 0;
       const ro = workspaceEl ? new ResizeObserver(() => {
+        const w = workspaceEl.clientWidth;
+        if (Math.abs(w - lastWidth) < 4) return;
+        lastWidth = w;
         cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => fitToViewport(editor, setZoom));
+        rafId = requestAnimationFrame(() => {
+          if (recomputeFitScale(editor)) {
+            applyZoom(editor, setZoom, currentZoomRef.current);
+          }
+        });
       }) : null;
       if (ro && workspaceEl) ro.observe(workspaceEl);
       resizeObserverRef.current = ro;
     })();
+
     return () => {
       mounted = false;
       resizeObserverRef.current?.disconnect();
