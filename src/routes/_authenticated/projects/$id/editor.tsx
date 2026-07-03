@@ -109,6 +109,34 @@ function setEditorZoom(
 
 const CANVAS_PAGE_WIDTH = 1440;
 
+// Clamp legacy/saved pages whose outermost element is wider than the page
+// frame so they never overflow the editor container. Runs after setComponents.
+function normalizeOversizedRoot(editor: Editor | null) {
+  if (!editor) return;
+  requestAnimationFrame(() => {
+    try {
+      const doc = editor.Canvas.getDocument();
+      const body = doc?.body;
+      if (!body) return;
+      const candidates: HTMLElement[] = [];
+      for (const el of Array.from(body.children)) {
+        if (el instanceof HTMLElement) candidates.push(el);
+      }
+      // Also inspect first descendant when body wraps in <main>.
+      if (candidates[0]?.tagName === "MAIN" && candidates[0].firstElementChild instanceof HTMLElement) {
+        candidates.push(candidates[0].firstElementChild);
+      }
+      for (const el of candidates) {
+        if (el.getBoundingClientRect().width > CANVAS_PAGE_WIDTH) {
+          el.style.maxWidth = "100%";
+          el.style.overflow = "hidden";
+        }
+      }
+    } catch { /* ignore */ }
+  });
+}
+
+
 function fitToWorkspace(
   editor: Editor | null,
   setZoomFn: (z: number) => void,
