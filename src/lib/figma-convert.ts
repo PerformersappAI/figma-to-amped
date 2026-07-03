@@ -279,16 +279,20 @@ function convertNode(node: any, ctx: ConvertCtx, depth = 0, isRoot = false): str
     const html = convertNode(c, ctx, depth + 1, false);
     // Absolute positioning fallback
     if (!node.layoutMode && c.absoluteBoundingBox && node.absoluteBoundingBox && html) {
-      const x = Math.round(c.absoluteBoundingBox.x - node.absoluteBoundingBox.x);
-      const y = Math.round(c.absoluteBoundingBox.y - node.absoluteBoundingBox.y);
-      const w = Math.round(c.absoluteBoundingBox.width);
+      let x = Math.round(c.absoluteBoundingBox.x - node.absoluteBoundingBox.x);
+      let y = Math.round(c.absoluteBoundingBox.y - node.absoluteBoundingBox.y);
+      let w = Math.round(c.absoluteBoundingBox.width);
       const h = Math.round(c.absoluteBoundingBox.height);
-      // Wrap in a positioning div sized to the child's Figma bounding box
-      // so children render at their original size and don't bleed.
-      return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;">${html}</div>`;
+      // Clamp children so they never extend past the 1440px root container.
+      const parentW = Math.round(node.absoluteBoundingBox.width);
+      const boundW = isRoot ? Math.min(parentW, 1440) : parentW;
+      if (x < 0) { w = Math.max(0, w + x); x = 0; }
+      if (x + w > boundW) { w = Math.max(0, boundW - x); }
+      return `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;max-width:100%;">${html}</div>`;
     }
     return html;
   }).join("\n");
+
 
   return `<div class="${cls}">\n${children}\n</div>`;
 }
@@ -296,6 +300,15 @@ function convertNode(node: any, ctx: ConvertCtx, depth = 0, isRoot = false): str
 export function buildCss(ctx: ConvertCtx): string {
   const parts: string[] = [];
   for (const [cls, style] of ctx.cssRules) {
+    // Any element wider than the 1440px page frame gets clamped so it can
+    // never overflow the editor container.
+    const wRaw = style["width"];
+    if (typeof wRaw === "string") {
+      const m = wRaw.match(/^(\d+(?:\.\d+)?)px$/);
+      if (m && parseFloat(m[1]) > 1440) {
+        style["max-width"] = "100%";
+      }
+    }
     parts.push(`.${cls} {\n${styleToCssString(style)}\n}`);
   }
   return parts.join("\n\n");
@@ -317,7 +330,10 @@ export function convertFrame(
 ): { html: string; css: string } {
   const ctx: ConvertCtx = { imageMap, cssRules: new Map(), classNames: new Set(), vectorSvgMap };
   const inner = convertNode(node, ctx, 0, true);
-  const html = `<main>\n${inner}\n</main>`;
+  // Wrap the entire converted page in a fixed-max-width root container so it
+  // can never overflow the editor frame, no matter what the source design did.
+  const html = `<main>\n<div class="figma-root" style="width:100%;max-width:1440px;margin:0 auto;position:relative;overflow:hidden;">\n${inner}\n</div>\n</main>`;
   const css = buildCss(ctx);
   return { html, css };
 }
+
