@@ -242,43 +242,17 @@ function EditorPage() {
           editorRef.current?.Canvas.getFrames().forEach((f: any) => f.view?.el?.scrollTo?.(0, 0));
         } catch { /* ignore */ }
       });
-      let didInitialFit = false;
       editor.on("canvas:frame:load:body", () => {
-        updateCanvasWorkspace(editor);
         enableComponentDragging(editor);
-        if (!didInitialFit) {
-          didInitialFit = true;
-          fitToViewport(editor, setZoom);
-        }
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
-        requestAnimationFrame(() => resetCanvasToTop(editor));
       });
       editorRef.current = editor;
-      fitToViewport(editor, setZoom);
-
-      // When the workspace resizes, recompute the fit scale and re-apply the
-      // user's current zoom % against the new fit — never override their zoom.
-      const workspaceEl = ref.current?.parentElement;
-      let rafId = 0;
-      let lastWidth = workspaceEl?.clientWidth ?? 0;
-      const ro = workspaceEl ? new ResizeObserver(() => {
-        const w = workspaceEl.clientWidth;
-        if (Math.abs(w - lastWidth) < 4) return;
-        lastWidth = w;
-        cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          if (recomputeFitScale(editor)) {
-            applyZoom(editor, setZoom, currentZoomRef.current);
-          }
-        });
-      }) : null;
-      if (ro && workspaceEl) ro.observe(workspaceEl);
-      resizeObserverRef.current = ro;
+      fitToWorkspace(editor, setZoom);
     })();
 
     return () => {
