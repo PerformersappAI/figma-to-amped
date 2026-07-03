@@ -107,27 +107,45 @@ function setEditorZoom(
   setZoomFn(next);
 }
 
+const CANVAS_PAGE_WIDTH = 1440;
+
 function fitToWorkspace(
   editor: Editor | null,
   setZoomFn: (z: number) => void,
 ) {
   if (!editor) return;
-  editor.onReady(() => {
-    try {
-      const container = editor.getContainer();
-      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frame = container?.querySelector<HTMLElement>(".gjs-frame");
-      if (!canvasEl || !frame) return;
-      const workspaceW = canvasEl.clientWidth;
-      const frameW = frame.offsetWidth;
-      if (workspaceW <= 0 || frameW <= 0) return;
-      const z = Math.max(25, Math.min(200, Math.round((workspaceW / frameW) * 100)));
-      editor.Canvas.setZoom(z);
-      setZoomFn(z);
-    } catch {
-      /* ignore */
-    }
-  });
+  const run = () => {
+    requestAnimationFrame(() => {
+      try {
+        const container = editor.getContainer();
+        const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
+        if (!canvasEl) return;
+        // Center the frame horizontally with dark gutters on both sides.
+        canvasEl.style.display = "flex";
+        canvasEl.style.justifyContent = "center";
+        canvasEl.style.alignItems = "flex-start";
+
+        const workspaceW = canvasEl.clientWidth;
+        if (workspaceW <= 0) return;
+        const z = Math.max(
+          25,
+          Math.min(100, Math.round((workspaceW / CANVAS_PAGE_WIDTH) * 100)),
+        );
+        editor.Canvas.setZoom(z);
+        setZoomFn(z);
+
+        // Reset scroll to top-left so the page starts at the top.
+        canvasEl.scrollTop = 0;
+        canvasEl.scrollLeft = 0;
+        try {
+          editor.Canvas.getFrameEl()?.contentWindow?.scrollTo(0, 0);
+        } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
+    });
+  };
+  try { editor.onReady(run); } catch { run(); }
 }
 
 
