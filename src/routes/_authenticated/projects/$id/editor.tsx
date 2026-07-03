@@ -71,179 +71,6 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "page";
 }
 
-function updateCanvasWorkspace(editor: Editor | null) {
-  if (!editor) return;
-  requestAnimationFrame(() => {
-    try {
-      const container = editor.getContainer();
-      if (!container) return;
-      const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
-      if (canvasEl) {
-        canvasEl.style.overflow = "auto";
-        canvasEl.style.background = "#0a0a0a";
-        canvasEl.style.alignItems = "flex-start";
-      }
-      if (frameWrapper) {
-        frameWrapper.style.marginTop = "0";
-        frameWrapper.style.top = "0";
-      }
-      editor.refresh({ tools: true });
-    } catch {
-      /* ignore workspace errors */
-    }
-  });
-}
-
-function resetCanvasToTop(editor: Editor | null) {
-  if (!editor) return;
-
-  const syncTop = () => {
-    try {
-      const container = editor.getContainer();
-      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frameWrapper = container?.querySelector<HTMLElement>(".gjs-frame-wrapper");
-      const doc = editor.Canvas.getDocument();
-      const win = editor.Canvas.getWindow();
-
-      if (canvasEl) {
-        canvasEl.scrollTop = 0;
-        canvasEl.scrollLeft = 0;
-      }
-
-      if (frameWrapper) {
-        frameWrapper.style.marginTop = "0";
-        frameWrapper.style.top = "0";
-      }
-
-      if (win) {
-        win.scrollTo(0, 0);
-      }
-
-      if (doc?.documentElement) {
-        doc.documentElement.scrollTop = 0;
-        doc.documentElement.scrollLeft = 0;
-      }
-
-      if (doc?.body) {
-        doc.body.scrollTop = 0;
-        doc.body.scrollLeft = 0;
-      }
-    } catch {
-      /* ignore scroll reset errors */
-    }
-  };
-
-  syncTop();
-  requestAnimationFrame(() => {
-    syncTop();
-    requestAnimationFrame(syncTop);
-  });
-}
-
-
-// Stable per-editor measurements. fitScale is the iframe-scale at which
-// the page exactly fills the workspace width — the user's "100%".
-const baseWidthRef = { current: 0 };
-const baseHeightRef = { current: 0 };
-const fitScaleRef = { current: 1 };
-
-function applyZoom(
-  editor: Editor | null,
-  setZoomFn: (z: number) => void,
-  value: number,
-  opts: { resetScroll?: boolean } = {},
-) {
-  if (!editor) return;
-  const next = Math.max(10, Math.min(400, Math.round(value)));
-  const effective = (next / 100) * (fitScaleRef.current || 1);
-  // Default to resetting scroll on every zoom change so the page stays
-  // anchored to the top instead of jumping to a mid-page region.
-  const resetScroll = opts.resetScroll !== false;
-  try {
-    const container = editor.getContainer();
-    if (!container) return;
-    const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
-    const frame = container.querySelector<HTMLElement>(".gjs-frame");
-    const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
-    if (frame) {
-      const baseW = baseWidthRef.current || frame.offsetWidth;
-      const baseH = baseHeightRef.current || frame.offsetHeight;
-      frame.style.width = `${baseW}px`;
-      frame.style.height = `${baseH}px`;
-      frame.style.transformOrigin = "top left";
-      frame.style.transform = `scale(${effective})`;
-      if (frameWrapper) {
-        frameWrapper.style.width = `${baseW * effective}px`;
-        frameWrapper.style.height = `${baseH * effective}px`;
-      }
-    }
-    if (resetScroll && canvasEl) {
-      resetCanvasToTop(editor);
-    }
-    editor.refresh({ tools: true });
-    if (resetScroll) {
-      requestAnimationFrame(() => resetCanvasToTop(editor));
-    }
-  } catch {
-    /* ignore zoom errors */
-  }
-  setZoomFn(next);
-}
-
-// Measure the page's intrinsic width/height ONCE and compute the fit scale
-// for the current workspace width. Does NOT change the user's zoom %.
-function recomputeFitScale(editor: Editor | null): boolean {
-  if (!editor) return false;
-  try {
-    updateCanvasWorkspace(editor);
-    const container = editor.getContainer();
-    const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-    const frame = container?.querySelector<HTMLElement>(".gjs-frame");
-    if (!canvasEl || !frame) return false;
-    const doc = editor.Canvas.getDocument();
-    // If base width is unset, capture it now from the live document.
-    if (!baseWidthRef.current) {
-      const contentW = Math.max(
-        320,
-        doc?.body?.scrollWidth || 0,
-        doc?.documentElement?.scrollWidth || 0,
-        frame.offsetWidth,
-      );
-      const contentH = Math.max(
-        320,
-        doc?.body?.scrollHeight || 0,
-        doc?.documentElement?.scrollHeight || 0,
-        frame.offsetHeight,
-      );
-      baseWidthRef.current = contentW;
-      baseHeightRef.current = contentH;
-    }
-    const available = canvasEl.clientWidth;
-    if (available <= 0) return false;
-    fitScaleRef.current = Math.max(0.1, Math.min(4, available / baseWidthRef.current));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
-  if (!editor) return;
-  requestAnimationFrame(() => {
-    // Reset measurements so we capture a fresh base width for this page.
-    baseWidthRef.current = 0;
-    baseHeightRef.current = 0;
-    if (recomputeFitScale(editor)) {
-      applyZoom(editor, setZoomFn, 100, { resetScroll: true });
-    } else {
-      applyZoom(editor, setZoomFn, 100, { resetScroll: true });
-    }
-  });
-}
-
-
-
 function enableComponentDragging(editor: Editor | null) {
   if (!editor) return;
   try {
@@ -265,13 +92,42 @@ function enableComponentDragging(editor: Editor | null) {
   }
 }
 
-
-function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
-  applyZoom(editor, setZoomFn, current + 10, { resetScroll: true });
+function setEditorZoom(
+  editor: Editor | null,
+  setZoomFn: (z: number) => void,
+  value: number,
+) {
+  if (!editor) return;
+  const next = Math.max(25, Math.min(200, Math.round(value)));
+  try {
+    editor.Canvas.setZoom(next);
+  } catch {
+    /* ignore */
+  }
+  setZoomFn(next);
 }
 
-function zoomOut(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
-  applyZoom(editor, setZoomFn, current - 10, { resetScroll: true });
+function fitToWorkspace(
+  editor: Editor | null,
+  setZoomFn: (z: number) => void,
+) {
+  if (!editor) return;
+  editor.onReady(() => {
+    try {
+      const container = editor.getContainer();
+      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
+      const frame = container?.querySelector<HTMLElement>(".gjs-frame");
+      if (!canvasEl || !frame) return;
+      const workspaceW = canvasEl.clientWidth;
+      const frameW = frame.offsetWidth;
+      if (workspaceW <= 0 || frameW <= 0) return;
+      const z = Math.max(25, Math.min(200, Math.round((workspaceW / frameW) * 100)));
+      editor.Canvas.setZoom(z);
+      setZoomFn(z);
+    } catch {
+      /* ignore */
+    }
+  });
 }
 
 
@@ -345,7 +201,7 @@ function EditorPage() {
         height: "100%",
         width: "100%",
         canvas: { scrollableCanvas: true },
-        dragMode: "absolute",
+        
 
         storageManager: false,
         fromElement: false,
@@ -386,43 +242,17 @@ function EditorPage() {
           editorRef.current?.Canvas.getFrames().forEach((f: any) => f.view?.el?.scrollTo?.(0, 0));
         } catch { /* ignore */ }
       });
-      let didInitialFit = false;
       editor.on("canvas:frame:load:body", () => {
-        updateCanvasWorkspace(editor);
         enableComponentDragging(editor);
-        if (!didInitialFit) {
-          didInitialFit = true;
-          fitToViewport(editor, setZoom);
-        }
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
       editor.on("canvas:zoom", () => {
         const z = Number(editor.Canvas.getZoom()) || 100;
         setZoom(Math.round(z));
-        requestAnimationFrame(() => resetCanvasToTop(editor));
       });
       editorRef.current = editor;
-      fitToViewport(editor, setZoom);
-
-      // When the workspace resizes, recompute the fit scale and re-apply the
-      // user's current zoom % against the new fit — never override their zoom.
-      const workspaceEl = ref.current?.parentElement;
-      let rafId = 0;
-      let lastWidth = workspaceEl?.clientWidth ?? 0;
-      const ro = workspaceEl ? new ResizeObserver(() => {
-        const w = workspaceEl.clientWidth;
-        if (Math.abs(w - lastWidth) < 4) return;
-        lastWidth = w;
-        cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          if (recomputeFitScale(editor)) {
-            applyZoom(editor, setZoom, currentZoomRef.current);
-          }
-        });
-      }) : null;
-      if (ro && workspaceEl) ro.observe(workspaceEl);
-      resizeObserverRef.current = ro;
+      fitToWorkspace(editor, setZoom);
     })();
 
     return () => {
@@ -464,7 +294,7 @@ function EditorPage() {
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
     enableComponentDragging(ed);
-    fitToViewport(ed, setZoom);
+    fitToWorkspace(ed, setZoom);
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
     setFigmaRef(data.figma_design_reference_url || null);
@@ -547,7 +377,7 @@ function EditorPage() {
   function setDevice(d: "Desktop" | "Mobile") {
     setDeviceState(d);
     editorRef.current?.setDevice(d);
-    fitToViewport(editorRef.current, setZoom);
+    fitToWorkspace(editorRef.current, setZoom);
   }
 
   return (
@@ -567,25 +397,25 @@ function EditorPage() {
           <DeviceBtn active={device === "Desktop"} onClick={() => setDevice("Desktop")} icon={<Monitor size={14} />} label="Desktop" />
           <DeviceBtn active={device === "Mobile"} onClick={() => setDevice("Mobile")} icon={<Smartphone size={14} />} label="Mobile" />
           <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
-          <button onClick={() => zoomOut(editorRef.current, setZoom, zoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom out"><ZoomOut size={16} /></button>
+          <button onClick={() => setEditorZoom(editorRef.current, setZoom, zoom - 10)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom out"><ZoomOut size={16} /></button>
           <input
             type="number"
-            min={10}
-            max={400}
+            min={25}
+            max={200}
             value={zoom}
             onChange={(e) => {
               const v = Number(e.target.value);
               if (Number.isFinite(v)) setZoom(v);
             }}
-            onBlur={(e) => applyZoom(editorRef.current, setZoom, Number(e.target.value) || 100, { resetScroll: true })}
+            onBlur={(e) => setEditorZoom(editorRef.current, setZoom, Number(e.target.value) || 100)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") applyZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100, { resetScroll: true });
+              if (e.key === "Enter") setEditorZoom(editorRef.current, setZoom, Number((e.target as HTMLInputElement).value) || 100);
             }}
             className="w-14 bg-transparent border border-[#2a2a2a] rounded text-white text-center text-[11px] py-1 focus:outline-none focus:border-[var(--accent)]"
             title="Zoom %"
           />
           <span className="font-display text-[10px] text-[#888]">%</span>
-          <button onClick={() => zoomIn(editorRef.current, setZoom, zoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
+          <button onClick={() => setEditorZoom(editorRef.current, setZoom, zoom + 10)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
