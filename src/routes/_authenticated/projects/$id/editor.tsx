@@ -290,8 +290,10 @@ function EditorPage() {
       });
       editor.on("canvas:frame:load:body", () => {
         enableComponentDragging(editor);
+        normalizeOversizedRoot(editor);
         fitToWorkspace(editor, setZoom);
       });
+
       editor.on("component:add", () => enableComponentDragging(editor));
 
       editor.on("canvas:zoom", () => {
@@ -341,7 +343,9 @@ function EditorPage() {
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
     enableComponentDragging(ed);
+    normalizeOversizedRoot(ed);
     requestAnimationFrame(() => fitToWorkspace(ed, setZoom));
+
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
     setFigmaRef(data.figma_design_reference_url || null);
