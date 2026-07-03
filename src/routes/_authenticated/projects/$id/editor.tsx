@@ -262,6 +262,7 @@ function EditorPage() {
       });
       editor.on("canvas:frame:load:body", () => {
         enableComponentDragging(editor);
+        fitToWorkspace(editor, setZoom);
       });
       editor.on("component:add", () => enableComponentDragging(editor));
 
