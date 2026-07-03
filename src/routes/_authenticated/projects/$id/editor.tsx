@@ -494,6 +494,21 @@ function EditorPage() {
           <span className="font-display text-[10px] text-[#888]">%</span>
           <button onClick={() => setEditorZoom(editorRef.current, setZoom, zoom + 10)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
           <button onClick={() => fitToWorkspace(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Fit to screen"><Maximize2 size={16} /></button>
+          <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
+          <button
+            onClick={toggleFreeMove}
+            title={freeMove ? "Free Move: ON (selected element is absolute)" : "Free Move: OFF (page flow)"}
+            className="flex items-center gap-1 px-2 py-1 border rounded font-display uppercase tracking-widest text-[10px]"
+            style={{
+              background: freeMove ? "#c8f000" : "transparent",
+              borderColor: freeMove ? "#c8f000" : "#2a2a2a",
+              color: freeMove ? "#0a0a0a" : "#fff",
+              fontWeight: 800,
+            }}
+          >
+            {freeMove ? <Unlock size={13} /> : <Lock size={13} />}
+            Free Move
+          </button>
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
