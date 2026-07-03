@@ -232,7 +232,7 @@ function EditorPage() {
           style.textContent = `
             html, body { margin: 0; background: #fff; min-height: 100%; }
             body { width: 100%; overflow-x: hidden; }
-            body > * { max-width: 100% !important; }
+            
             img, video { max-width: 100%; height: auto; }
           `;
           doc.head.appendChild(style);
