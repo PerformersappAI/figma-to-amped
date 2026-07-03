@@ -7,7 +7,7 @@ import {
   Minus, Video, FormInput, MessageSquareQuote, Megaphone, FileText, Bot,
   HelpCircle, Search, Share2, UserPlus, Lightbulb, Star, BarChart3, Zap,
   Layers, Globe, Figma, X, FileText as PageIcon, Home, Plus, MoreVertical,
-  ZoomIn, ZoomOut, Maximize2,
+  ZoomIn, ZoomOut, Maximize2, Lock, Unlock,
 } from "lucide-react";
 import grapesjs, { Editor } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
@@ -155,9 +155,11 @@ function fitToWorkspace(
 
         const workspaceW = canvasEl.clientWidth;
         if (workspaceW <= 0) return;
+        const frameEl = editor.Canvas.getFrameEl() as HTMLIFrameElement | null;
+        const frameW = frameEl?.offsetWidth || CANVAS_PAGE_WIDTH;
         const z = Math.max(
           25,
-          Math.min(100, Math.round((workspaceW / CANVAS_PAGE_WIDTH) * 100)),
+          Math.min(150, Math.round((workspaceW * 0.95 / frameW) * 100)),
         );
         editor.Canvas.setZoom(z);
         setZoomFn(z);
@@ -198,6 +200,30 @@ function EditorPage() {
   const [zoom, setZoom] = useState(100);
   const currentZoomRef = useRef(100);
   useEffect(() => { currentZoomRef.current = zoom; }, [zoom]);
+  const [freeMove, setFreeMove] = useState(false);
+  const freeMoveRef = useRef(false);
+  useEffect(() => { freeMoveRef.current = freeMove; }, [freeMove]);
+
+  function toggleFreeMove() {
+    const ed = editorRef.current;
+    const next = !freeMoveRef.current;
+    setFreeMove(next);
+    if (!ed) return;
+    try {
+      const sel = ed.getSelected();
+      if (!sel) {
+        toast.message(next ? "Free Move on — select an element to drag freely" : "Free Move off");
+        return;
+      }
+      if (next) {
+        sel.addStyle({ position: "absolute" });
+        try { (sel as any).set?.("dmode", "absolute"); } catch { /* ignore */ }
+      } else {
+        sel.addStyle({ position: "static" });
+        try { (sel as any).set?.("dmode", ""); } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+  }
 
   const [seo, setSeo] = useState<any>({
     title: "", description: "", ogTitle: "", ogDescription: "", canonical: "", robots: "index,follow",
@@ -468,6 +494,21 @@ function EditorPage() {
           <span className="font-display text-[10px] text-[#888]">%</span>
           <button onClick={() => setEditorZoom(editorRef.current, setZoom, zoom + 10)} className="p-2 text-white hover:text-[var(--accent)]" title="Zoom in"><ZoomIn size={16} /></button>
           <button onClick={() => fitToWorkspace(editorRef.current, setZoom)} className="p-2 text-white hover:text-[var(--accent)]" title="Fit to screen"><Maximize2 size={16} /></button>
+          <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
+          <button
+            onClick={toggleFreeMove}
+            title={freeMove ? "Free Move: ON (selected element is absolute)" : "Free Move: OFF (page flow)"}
+            className="flex items-center gap-1 px-2 py-1 border rounded font-display uppercase tracking-widest text-[10px]"
+            style={{
+              background: freeMove ? "#c8f000" : "transparent",
+              borderColor: freeMove ? "#c8f000" : "#2a2a2a",
+              color: freeMove ? "#0a0a0a" : "#fff",
+              fontWeight: 800,
+            }}
+          >
+            {freeMove ? <Unlock size={13} /> : <Lock size={13} />}
+            Free Move
+          </button>
           {figmaRef && (
             <>
               <div className="w-px h-6 mx-2" style={{ background: "#2a2a2a" }} />
