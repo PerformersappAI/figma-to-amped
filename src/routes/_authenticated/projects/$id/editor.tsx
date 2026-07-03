@@ -200,6 +200,30 @@ function EditorPage() {
   const [zoom, setZoom] = useState(100);
   const currentZoomRef = useRef(100);
   useEffect(() => { currentZoomRef.current = zoom; }, [zoom]);
+  const [freeMove, setFreeMove] = useState(false);
+  const freeMoveRef = useRef(false);
+  useEffect(() => { freeMoveRef.current = freeMove; }, [freeMove]);
+
+  function toggleFreeMove() {
+    const ed = editorRef.current;
+    const next = !freeMoveRef.current;
+    setFreeMove(next);
+    if (!ed) return;
+    try {
+      const sel = ed.getSelected();
+      if (!sel) {
+        toast.message(next ? "Free Move on — select an element to drag freely" : "Free Move off");
+        return;
+      }
+      if (next) {
+        sel.addStyle({ position: "absolute" });
+        try { (sel as any).set?.("dmode", "absolute"); } catch { /* ignore */ }
+      } else {
+        sel.addStyle({ position: "static" });
+        try { (sel as any).set?.("dmode", ""); } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+  }
 
   const [seo, setSeo] = useState<any>({
     title: "", description: "", ogTitle: "", ogDescription: "", canonical: "", robots: "index,follow",
