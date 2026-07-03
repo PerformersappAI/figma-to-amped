@@ -201,7 +201,7 @@ function EditorPage() {
         height: "100%",
         width: "100%",
         canvas: { scrollableCanvas: true },
-        dragMode: "absolute",
+        
 
         storageManager: false,
         fromElement: false,
