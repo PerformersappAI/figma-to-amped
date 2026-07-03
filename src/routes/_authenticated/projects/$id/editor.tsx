@@ -210,7 +210,7 @@ function EditorPage() {
         style: home.css || "",
         deviceManager: {
           devices: [
-            { name: "Desktop", width: "" },
+            { name: "Desktop", width: "1440px" },
             { name: "Mobile", width: "390px", widthMedia: "480px" },
           ],
         },
