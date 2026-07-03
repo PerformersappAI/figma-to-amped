@@ -377,7 +377,7 @@ function EditorPage() {
   function setDevice(d: "Desktop" | "Mobile") {
     setDeviceState(d);
     editorRef.current?.setDevice(d);
-    fitToViewport(editorRef.current, setZoom);
+    fitToWorkspace(editorRef.current, setZoom);
   }
 
   return (
