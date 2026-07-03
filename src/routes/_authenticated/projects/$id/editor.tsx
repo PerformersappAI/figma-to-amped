@@ -155,9 +155,11 @@ function fitToWorkspace(
 
         const workspaceW = canvasEl.clientWidth;
         if (workspaceW <= 0) return;
+        const frameEl = editor.Canvas.getFrameEl() as HTMLIFrameElement | null;
+        const frameW = frameEl?.offsetWidth || CANVAS_PAGE_WIDTH;
         const z = Math.max(
           25,
-          Math.min(100, Math.round((workspaceW / CANVAS_PAGE_WIDTH) * 100)),
+          Math.min(150, Math.round((workspaceW * 0.95 / frameW) * 100)),
         );
         editor.Canvas.setZoom(z);
         setZoomFn(z);
