@@ -313,7 +313,7 @@ function EditorPage() {
     ed.setStyle(data.css || "");
     if (data.grapesjson) { try { ed.loadProjectData(data.grapesjson as any); } catch { /* ignore */ } }
     enableComponentDragging(ed);
-    fitToWorkspace(ed, setZoom);
+    requestAnimationFrame(() => fitToWorkspace(ed, setZoom));
     activePageIdRef.current = pageId;
     setActivePageId(pageId);
     setFigmaRef(data.figma_design_reference_url || null);
