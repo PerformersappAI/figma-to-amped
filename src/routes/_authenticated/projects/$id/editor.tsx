@@ -210,7 +210,7 @@ function EditorPage() {
         style: home.css || "",
         deviceManager: {
           devices: [
-            { name: "Desktop", width: "" },
+            { name: "Desktop", width: "1440px" },
             { name: "Mobile", width: "390px", widthMedia: "480px" },
           ],
         },
@@ -232,7 +232,7 @@ function EditorPage() {
           style.textContent = `
             html, body { margin: 0; background: #fff; min-height: 100%; }
             body { width: 100%; overflow-x: hidden; }
-            body > * { max-width: 100% !important; }
+            
             img, video { max-width: 100%; height: auto; }
           `;
           doc.head.appendChild(style);
