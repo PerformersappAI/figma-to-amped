@@ -71,179 +71,6 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "page";
 }
 
-function updateCanvasWorkspace(editor: Editor | null) {
-  if (!editor) return;
-  requestAnimationFrame(() => {
-    try {
-      const container = editor.getContainer();
-      if (!container) return;
-      const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
-      if (canvasEl) {
-        canvasEl.style.overflow = "auto";
-        canvasEl.style.background = "#0a0a0a";
-        canvasEl.style.alignItems = "flex-start";
-      }
-      if (frameWrapper) {
-        frameWrapper.style.marginTop = "0";
-        frameWrapper.style.top = "0";
-      }
-      editor.refresh({ tools: true });
-    } catch {
-      /* ignore workspace errors */
-    }
-  });
-}
-
-function resetCanvasToTop(editor: Editor | null) {
-  if (!editor) return;
-
-  const syncTop = () => {
-    try {
-      const container = editor.getContainer();
-      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-      const frameWrapper = container?.querySelector<HTMLElement>(".gjs-frame-wrapper");
-      const doc = editor.Canvas.getDocument();
-      const win = editor.Canvas.getWindow();
-
-      if (canvasEl) {
-        canvasEl.scrollTop = 0;
-        canvasEl.scrollLeft = 0;
-      }
-
-      if (frameWrapper) {
-        frameWrapper.style.marginTop = "0";
-        frameWrapper.style.top = "0";
-      }
-
-      if (win) {
-        win.scrollTo(0, 0);
-      }
-
-      if (doc?.documentElement) {
-        doc.documentElement.scrollTop = 0;
-        doc.documentElement.scrollLeft = 0;
-      }
-
-      if (doc?.body) {
-        doc.body.scrollTop = 0;
-        doc.body.scrollLeft = 0;
-      }
-    } catch {
-      /* ignore scroll reset errors */
-    }
-  };
-
-  syncTop();
-  requestAnimationFrame(() => {
-    syncTop();
-    requestAnimationFrame(syncTop);
-  });
-}
-
-
-// Stable per-editor measurements. fitScale is the iframe-scale at which
-// the page exactly fills the workspace width — the user's "100%".
-const baseWidthRef = { current: 0 };
-const baseHeightRef = { current: 0 };
-const fitScaleRef = { current: 1 };
-
-function applyZoom(
-  editor: Editor | null,
-  setZoomFn: (z: number) => void,
-  value: number,
-  opts: { resetScroll?: boolean } = {},
-) {
-  if (!editor) return;
-  const next = Math.max(10, Math.min(400, Math.round(value)));
-  const effective = (next / 100) * (fitScaleRef.current || 1);
-  // Default to resetting scroll on every zoom change so the page stays
-  // anchored to the top instead of jumping to a mid-page region.
-  const resetScroll = opts.resetScroll !== false;
-  try {
-    const container = editor.getContainer();
-    if (!container) return;
-    const frameWrapper = container.querySelector<HTMLElement>(".gjs-frame-wrapper");
-    const frame = container.querySelector<HTMLElement>(".gjs-frame");
-    const canvasEl = container.querySelector<HTMLElement>(".gjs-cv-canvas");
-    if (frame) {
-      const baseW = baseWidthRef.current || frame.offsetWidth;
-      const baseH = baseHeightRef.current || frame.offsetHeight;
-      frame.style.width = `${baseW}px`;
-      frame.style.height = `${baseH}px`;
-      frame.style.transformOrigin = "top left";
-      frame.style.transform = `scale(${effective})`;
-      if (frameWrapper) {
-        frameWrapper.style.width = `${baseW * effective}px`;
-        frameWrapper.style.height = `${baseH * effective}px`;
-      }
-    }
-    if (resetScroll && canvasEl) {
-      resetCanvasToTop(editor);
-    }
-    editor.refresh({ tools: true });
-    if (resetScroll) {
-      requestAnimationFrame(() => resetCanvasToTop(editor));
-    }
-  } catch {
-    /* ignore zoom errors */
-  }
-  setZoomFn(next);
-}
-
-// Measure the page's intrinsic width/height ONCE and compute the fit scale
-// for the current workspace width. Does NOT change the user's zoom %.
-function recomputeFitScale(editor: Editor | null): boolean {
-  if (!editor) return false;
-  try {
-    updateCanvasWorkspace(editor);
-    const container = editor.getContainer();
-    const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
-    const frame = container?.querySelector<HTMLElement>(".gjs-frame");
-    if (!canvasEl || !frame) return false;
-    const doc = editor.Canvas.getDocument();
-    // If base width is unset, capture it now from the live document.
-    if (!baseWidthRef.current) {
-      const contentW = Math.max(
-        320,
-        doc?.body?.scrollWidth || 0,
-        doc?.documentElement?.scrollWidth || 0,
-        frame.offsetWidth,
-      );
-      const contentH = Math.max(
-        320,
-        doc?.body?.scrollHeight || 0,
-        doc?.documentElement?.scrollHeight || 0,
-        frame.offsetHeight,
-      );
-      baseWidthRef.current = contentW;
-      baseHeightRef.current = contentH;
-    }
-    const available = canvasEl.clientWidth;
-    if (available <= 0) return false;
-    fitScaleRef.current = Math.max(0.1, Math.min(4, available / baseWidthRef.current));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function fitToViewport(editor: Editor | null, setZoomFn: (z: number) => void) {
-  if (!editor) return;
-  requestAnimationFrame(() => {
-    // Reset measurements so we capture a fresh base width for this page.
-    baseWidthRef.current = 0;
-    baseHeightRef.current = 0;
-    if (recomputeFitScale(editor)) {
-      applyZoom(editor, setZoomFn, 100, { resetScroll: true });
-    } else {
-      applyZoom(editor, setZoomFn, 100, { resetScroll: true });
-    }
-  });
-}
-
-
-
 function enableComponentDragging(editor: Editor | null) {
   if (!editor) return;
   try {
@@ -265,13 +92,42 @@ function enableComponentDragging(editor: Editor | null) {
   }
 }
 
-
-function zoomIn(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
-  applyZoom(editor, setZoomFn, current + 10, { resetScroll: true });
+function setEditorZoom(
+  editor: Editor | null,
+  setZoomFn: (z: number) => void,
+  value: number,
+) {
+  if (!editor) return;
+  const next = Math.max(25, Math.min(200, Math.round(value)));
+  try {
+    editor.Canvas.setZoom(next);
+  } catch {
+    /* ignore */
+  }
+  setZoomFn(next);
 }
 
-function zoomOut(editor: Editor | null, setZoomFn: (z: number) => void, current: number) {
-  applyZoom(editor, setZoomFn, current - 10, { resetScroll: true });
+function fitToWorkspace(
+  editor: Editor | null,
+  setZoomFn: (z: number) => void,
+) {
+  if (!editor) return;
+  editor.onReady(() => {
+    try {
+      const container = editor.getContainer();
+      const canvasEl = container?.querySelector<HTMLElement>(".gjs-cv-canvas");
+      const frame = container?.querySelector<HTMLElement>(".gjs-frame");
+      if (!canvasEl || !frame) return;
+      const workspaceW = canvasEl.clientWidth;
+      const frameW = frame.offsetWidth;
+      if (workspaceW <= 0 || frameW <= 0) return;
+      const z = Math.max(25, Math.min(200, Math.round((workspaceW / frameW) * 100)));
+      editor.Canvas.setZoom(z);
+      setZoomFn(z);
+    } catch {
+      /* ignore */
+    }
+  });
 }
 
 
