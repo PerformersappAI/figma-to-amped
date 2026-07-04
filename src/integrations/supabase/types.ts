@@ -159,6 +159,7 @@ export type Database = {
           name: string
           order_index: number
           project_id: string
+          puck_data: Json | null
           slug: string
           status: string
           thumbnail_url: string | null
@@ -181,6 +182,7 @@ export type Database = {
           name?: string
           order_index?: number
           project_id: string
+          puck_data?: Json | null
           slug: string
           status?: string
           thumbnail_url?: string | null
@@ -203,6 +205,7 @@ export type Database = {
           name?: string
           order_index?: number
           project_id?: string
+          puck_data?: Json | null
           slug?: string
           status?: string
           thumbnail_url?: string | null
