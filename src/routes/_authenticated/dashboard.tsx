@@ -101,7 +101,7 @@ function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2 mt-4">
                   <Link
-                    to="/projects/$id/editor" params={{ id: p.id }}
+                    to="/projects/$id/puck-editor" params={{ id: p.id }}
                     className="btn-primary flex-1 !py-2 !px-3 text-xs"
                   >
                     <Pencil size={14} /> Edit
