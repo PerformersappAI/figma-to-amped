@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Rocket } from "lucide-react";
 import { Puck, type Config, type Data } from "@measured/puck";
-import "@measured/puck/puck.css";
+import puckCssUrl from "@measured/puck/puck.css?url";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/projects/$id/puck-editor")({
