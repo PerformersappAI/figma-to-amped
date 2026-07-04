@@ -7,6 +7,12 @@ import puckCssUrl from "@measured/puck/puck.css?url";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/projects/$id/puck-editor")({
+  head: () => ({
+    links: [
+      { rel: "stylesheet", href: puckCssUrl },
+      { rel: "stylesheet", href: "https://rsms.me/inter/inter.css" },
+    ],
+  }),
   component: PuckEditorPage,
 });
 
