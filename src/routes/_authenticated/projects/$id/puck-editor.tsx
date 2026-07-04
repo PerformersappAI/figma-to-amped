@@ -418,7 +418,7 @@ const EMPTY_DATA: Data = { content: [], root: { props: {} } };
 
 function PuckEditorPage() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
+  
   const [projectName, setProjectName] = useState<string>("");
   const [pageId, setPageId] = useState<string | null>(null);
   const [initialData, setInitialData] = useState<Data | null>(null);
