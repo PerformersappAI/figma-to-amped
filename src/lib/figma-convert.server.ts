@@ -512,9 +512,11 @@ export async function runRenderStep(opts: { page: OwnedPage }) {
   }
 
   const dims = frameDimensions(opts.page.figma_node_tree);
+  const puckData = figmaFrameToPuck(opts.page.figma_node_tree, imageMap);
   await supabaseAdmin.from("pages").update({
     html,
     css,
+    puck_data: puckData as any,
     status: "rendered",
     error_message: null,
     figma_metadata: mergeFigmaMetadata(opts.page.figma_metadata, { ...dims, last_completed_step: "rendered" }),
