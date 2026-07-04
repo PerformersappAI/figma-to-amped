@@ -462,6 +462,7 @@ function PuckEditorPage() {
           .select("id")
           .single();
         if (created) setPageId(created.id);
+        _latestData.current = EMPTY_DATA;
         setInitialData(EMPTY_DATA);
       }
     })();
