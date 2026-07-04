@@ -3,15 +3,18 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Rocket } from "lucide-react";
 import { Puck, type Config, type Data } from "@measured/puck";
-import puckCssUrl from "@measured/puck/puck.css?url";
+import puckCssRaw from "@measured/puck/puck.css?raw";
 import { supabase } from "@/integrations/supabase/client";
+
+// Strip the remote @import that lightningcss can't resolve during build.
+const puckCss = (puckCssRaw as string).replace(/@import\s+["']https?:\/\/[^"']+["'];?/g, "");
 
 export const Route = createFileRoute("/_authenticated/projects/$id/puck-editor")({
   head: () => ({
     links: [
-      { rel: "stylesheet", href: puckCssUrl },
       { rel: "stylesheet", href: "https://rsms.me/inter/inter.css" },
     ],
+    styles: [{ children: puckCss }],
   }),
   component: PuckEditorPage,
 });

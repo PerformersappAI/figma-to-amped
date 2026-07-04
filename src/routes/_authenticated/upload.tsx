@@ -646,7 +646,7 @@ function UploadPage() {
         <BatchOverlay
           batch={batch}
           onRetry={retryPage}
-          onOpen={() => nav({ to: "/projects/$id/editor", params: { id: batch.projectId } })}
+          onOpen={() => nav({ to: "/projects/$id/puck-editor", params: { id: batch.projectId } })}
         />
       )}
     </div>
