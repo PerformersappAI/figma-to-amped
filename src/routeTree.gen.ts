@@ -30,6 +30,7 @@ import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disco
 import { Route as ApiFigmaConvertBatchRouteImport } from './routes/api/figma.convert-batch'
 import { Route as ApiFigmaConvertRouteImport } from './routes/api/figma.convert'
 import { Route as ApiFigmaCleanupRouteImport } from './routes/api/figma.cleanup'
+import { Route as AuthenticatedProjectsIdPuckEditorRouteImport } from './routes/_authenticated/projects/$id/puck-editor'
 import { Route as AuthenticatedProjectsIdPreviewRouteImport } from './routes/_authenticated/projects/$id/preview'
 import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_authenticated/projects/$id/editor'
 
@@ -138,6 +139,12 @@ const ApiFigmaCleanupRoute = ApiFigmaCleanupRouteImport.update({
   path: '/api/figma/cleanup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedProjectsIdPuckEditorRoute =
+  AuthenticatedProjectsIdPuckEditorRouteImport.update({
+    id: '/projects/$id/puck-editor',
+    path: '/projects/$id/puck-editor',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedProjectsIdPreviewRoute =
   AuthenticatedProjectsIdPreviewRouteImport.update({
     id: '/projects/$id/preview',
@@ -174,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
   '/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
+  '/projects/$id/puck-editor': typeof AuthenticatedProjectsIdPuckEditorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +206,7 @@ export interface FileRoutesByTo {
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
   '/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
+  '/projects/$id/puck-editor': typeof AuthenticatedProjectsIdPuckEditorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -224,6 +233,7 @@ export interface FileRoutesById {
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
   '/_authenticated/projects/$id/editor': typeof AuthenticatedProjectsIdEditorRoute
   '/_authenticated/projects/$id/preview': typeof AuthenticatedProjectsIdPreviewRoute
+  '/_authenticated/projects/$id/puck-editor': typeof AuthenticatedProjectsIdPuckEditorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/preview/$projectId/$pageSlug'
     | '/projects/$id/editor'
     | '/projects/$id/preview'
+    | '/projects/$id/puck-editor'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/preview/$projectId/$pageSlug'
     | '/projects/$id/editor'
     | '/projects/$id/preview'
+    | '/projects/$id/puck-editor'
   id:
     | '__root__'
     | '/'
@@ -299,6 +311,7 @@ export interface FileRouteTypes {
     | '/preview/$projectId/$pageSlug'
     | '/_authenticated/projects/$id/editor'
     | '/_authenticated/projects/$id/preview'
+    | '/_authenticated/projects/$id/puck-editor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -470,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFigmaCleanupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/projects/$id/puck-editor': {
+      id: '/_authenticated/projects/$id/puck-editor'
+      path: '/projects/$id/puck-editor'
+      fullPath: '/projects/$id/puck-editor'
+      preLoaderRoute: typeof AuthenticatedProjectsIdPuckEditorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/projects/$id/preview': {
       id: '/_authenticated/projects/$id/preview'
       path: '/projects/$id/preview'
@@ -493,6 +513,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedUploadRoute: typeof AuthenticatedUploadRoute
   AuthenticatedProjectsIdEditorRoute: typeof AuthenticatedProjectsIdEditorRoute
   AuthenticatedProjectsIdPreviewRoute: typeof AuthenticatedProjectsIdPreviewRoute
+  AuthenticatedProjectsIdPuckEditorRoute: typeof AuthenticatedProjectsIdPuckEditorRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -501,6 +522,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedUploadRoute: AuthenticatedUploadRoute,
   AuthenticatedProjectsIdEditorRoute: AuthenticatedProjectsIdEditorRoute,
   AuthenticatedProjectsIdPreviewRoute: AuthenticatedProjectsIdPreviewRoute,
+  AuthenticatedProjectsIdPuckEditorRoute:
+    AuthenticatedProjectsIdPuckEditorRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

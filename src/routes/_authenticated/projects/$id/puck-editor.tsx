@@ -500,6 +500,7 @@ function PuckEditorPage() {
       <Puck
         config={puckConfig}
         data={initialData}
+        onChange={(d) => { _latestData.current = d; }}
         onPublish={publish}
         headerTitle={projectName || "Untitled"}
         overrides={{
