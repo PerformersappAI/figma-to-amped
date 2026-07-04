@@ -444,7 +444,9 @@ function PuckEditorPage() {
       if (target) {
         setPageId(target.id);
         const pd = (target as any).puck_data;
-        setInitialData(pd && typeof pd === "object" && Array.isArray(pd.content) ? (pd as Data) : EMPTY_DATA);
+        const loaded = pd && typeof pd === "object" && Array.isArray(pd.content) ? (pd as Data) : EMPTY_DATA;
+        _latestData.current = loaded;
+        setInitialData(loaded);
       } else {
         // No pages yet — create one so Puck has somewhere to save
         const { data: created } = await supabase
