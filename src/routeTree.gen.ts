@@ -15,6 +15,7 @@ import { Route as CanvasEditorRouteImport } from './routes/canvas-editor'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewProjectIdRouteImport } from './routes/preview.$projectId'
+import { Route as ApiAiPuckEditRouteImport } from './routes/api/ai-puck-edit'
 import { Route as ApiAiDesignChatRouteImport } from './routes/api/ai-design-chat'
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -61,6 +62,11 @@ const IndexRoute = IndexRouteImport.update({
 const PreviewProjectIdRoute = PreviewProjectIdRouteImport.update({
   id: '/preview/$projectId',
   path: '/preview/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiPuckEditRoute = ApiAiPuckEditRouteImport.update({
+  id: '/api/ai-puck-edit',
+  path: '/api/ai-puck-edit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiDesignChatRoute = ApiAiDesignChatRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
+  '/api/ai-puck-edit': typeof ApiAiPuckEditRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
   '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
+  '/api/ai-puck-edit': typeof ApiAiPuckEditRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
   '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
+  '/api/ai-puck-edit': typeof ApiAiPuckEditRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
   '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/upload'
     | '/api/ai-design-chat'
+    | '/api/ai-puck-edit'
     | '/preview/$projectId'
     | '/api/figma/cleanup'
     | '/api/figma/convert'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/upload'
     | '/api/ai-design-chat'
+    | '/api/ai-puck-edit'
     | '/preview/$projectId'
     | '/api/figma/cleanup'
     | '/api/figma/convert'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/upload'
     | '/api/ai-design-chat'
+    | '/api/ai-puck-edit'
     | '/preview/$projectId'
     | '/api/figma/cleanup'
     | '/api/figma/convert'
@@ -321,6 +333,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
+  ApiAiPuckEditRoute: typeof ApiAiPuckEditRoute
   PreviewProjectIdRoute: typeof PreviewProjectIdRouteWithChildren
   ApiFigmaCleanupRoute: typeof ApiFigmaCleanupRoute
   ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
@@ -376,6 +389,13 @@ declare module '@tanstack/react-router' {
       path: '/preview/$projectId'
       fullPath: '/preview/$projectId'
       preLoaderRoute: typeof PreviewProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-puck-edit': {
+      id: '/api/ai-puck-edit'
+      path: '/api/ai-puck-edit'
+      fullPath: '/api/ai-puck-edit'
+      preLoaderRoute: typeof ApiAiPuckEditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ai-design-chat': {
@@ -548,6 +568,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
+  ApiAiPuckEditRoute: ApiAiPuckEditRoute,
   PreviewProjectIdRoute: PreviewProjectIdRouteWithChildren,
   ApiFigmaCleanupRoute: ApiFigmaCleanupRoute,
   ApiFigmaConvertRoute: ApiFigmaConvertRoute,
@@ -563,13 +584,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
