@@ -33,7 +33,10 @@ function PuckEditorPage() {
   const [projectName, setProjectName] = useState<string>("");
   const [pageId, setPageId] = useState<string | null>(null);
   const [initialData, setInitialData] = useState<Data | null>(null);
+  const [puckKey, setPuckKey] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const latestRef = useRef<Data>(EMPTY_DATA);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,10 +59,10 @@ function PuckEditorPage() {
         setPageId(target.id);
         const pd = (target as any).puck_data;
         const loaded = pd && typeof pd === "object" && Array.isArray(pd.content) ? (pd as Data) : EMPTY_DATA;
+        latestRef.current = loaded;
         _latestData.current = loaded;
         setInitialData(loaded);
       } else {
-        // No pages yet — create one so Puck has somewhere to save
         const { data: created } = await supabase
           .from("pages")
           .insert({
@@ -73,6 +76,7 @@ function PuckEditorPage() {
           .select("id")
           .single();
         if (created) setPageId(created.id);
+        latestRef.current = EMPTY_DATA;
         _latestData.current = EMPTY_DATA;
         setInitialData(EMPTY_DATA);
       }
@@ -101,6 +105,13 @@ function PuckEditorPage() {
     else toast.success("Published");
   }
 
+  function applyAiData(next: Data) {
+    latestRef.current = next;
+    _latestData.current = next;
+    setInitialData(next);
+    setPuckKey((k) => k + 1);
+  }
+
   if (!initialData) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-65px)]" style={{ background: "#0a0a0a", color: "#888" }}>
@@ -110,46 +121,58 @@ function PuckEditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-65px)]" style={{ background: "#0a0a0a" }}>
-      <Puck
-        config={puckConfig}
-        data={initialData}
-        onChange={(d) => { _latestData.current = d; }}
-        onPublish={publish}
-        headerTitle={projectName || "Untitled"}
-        overrides={{
-          header: ({ actions }: any) => (
-            <div
-              className="flex items-center justify-between px-4 py-2 border-b"
-              style={{ background: "#0a0a0a", borderColor: "#1e1e1e" }}
-            >
-              <div className="flex items-center gap-3">
-                <Link to="/dashboard" className="text-white hover:text-[var(--accent)]">
-                  <ArrowLeft size={16} />
-                </Link>
-                <div>
-                  <div
-                    className="font-display uppercase tracking-widest"
-                    style={{ fontSize: 10, color: "#555" }}
-                  >
-                    Puck Editor
-                  </div>
-                  <div
-                    className="font-display font-bold uppercase truncate max-w-[260px]"
-                    style={{ fontSize: 14, color: "#fff", letterSpacing: "0.05em" }}
-                  >
-                    {projectName || "untitled"}
+    <div className="flex h-[calc(100vh-65px)]" style={{ background: "#0a0a0a" }}>
+      <PuckChatPanel
+        open={chatOpen}
+        onToggle={() => setChatOpen((v) => !v)}
+        getCurrentData={() => latestRef.current}
+        applyData={applyAiData}
+      />
+      <div className="flex-1 relative min-w-0">
+        <Puck
+          key={puckKey}
+          config={puckConfig}
+          data={initialData}
+          onChange={(d) => {
+            latestRef.current = d;
+            _latestData.current = d;
+          }}
+          onPublish={publish}
+          headerTitle={projectName || "Untitled"}
+          overrides={{
+            header: ({ actions }: any) => (
+              <div
+                className="flex items-center justify-between px-4 py-2 border-b"
+                style={{ background: "#0a0a0a", borderColor: "#1e1e1e" }}
+              >
+                <div className="flex items-center gap-3">
+                  <Link to="/dashboard" className="text-white hover:text-[var(--accent)]">
+                    <ArrowLeft size={16} />
+                  </Link>
+                  <div>
+                    <div
+                      className="font-display uppercase tracking-widest"
+                      style={{ fontSize: 10, color: "#555" }}
+                    >
+                      Puck Editor
+                    </div>
+                    <div
+                      className="font-display font-bold uppercase truncate max-w-[260px]"
+                      style={{ fontSize: 14, color: "#fff", letterSpacing: "0.05em" }}
+                    >
+                      {projectName || "untitled"}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <PuckSaveButtons saving={saving} onSave={saveDraft} onPublish={publish} />
+                  {actions}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <PuckSaveButtons saving={saving} onSave={saveDraft} onPublish={publish} />
-                {actions}
-              </div>
-            </div>
-          ),
-        }}
-      />
+            ),
+          }}
+        />
+      </div>
     </div>
   );
 }
