@@ -15,30 +15,52 @@ export function PublishModal({
 
   if (!open) return null;
 
+  async function renderHomePage(): Promise<{ html: string; css: string; name: string }> {
+    const { data: proj } = await supabase
+      .from("projects").select("name,html_content,css_content").eq("id", projectId).single();
+    const { data: pages } = await supabase
+      .from("pages").select("puck_data,html,css,is_home,order_index")
+      .eq("project_id", projectId)
+      .order("is_home", { ascending: false })
+      .order("order_index", { ascending: true })
+      .limit(1);
+    const page = pages?.[0] as any;
+    const pd = page?.puck_data;
+    if (hasPuckData(pd) && pd.content.length > 0) {
+      const { Render } = await import("@measured/puck");
+      const { renderToStaticMarkup } = await import("react-dom/server");
+      const body = renderToStaticMarkup(<Render config={puckConfig} data={pd} />);
+      return { html: body, css: "body{margin:0;background:#0a0a0a;color:#fff;font-family:system-ui,sans-serif;}", name: proj?.name || "site" };
+    }
+    if (page?.html) {
+      return { html: page.html, css: page.css || "", name: proj?.name || "site" };
+    }
+    return { html: proj?.html_content || "", css: proj?.css_content || "", name: proj?.name || "site" };
+  }
+
   async function loadCode() {
     await onSave();
-    const { data } = await supabase
-      .from("projects").select("html_content,css_content").eq("id", projectId).single();
-    setCode({ html: data?.html_content || "", css: data?.css_content || "" });
+    const r = await renderHomePage();
+    setCode({ html: r.html, css: r.css });
     setView("code");
   }
 
   async function downloadZip() {
     await onSave();
-    const { data } = await supabase
-      .from("projects").select("html_content,css_content,name").eq("id", projectId).single();
+    const r = await renderHomePage();
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
-    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${data?.name}</title><link rel="stylesheet" href="style.css"></head><body>${data?.html_content || ""}</body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${r.name}</title><link rel="stylesheet" href="style.css"></head><body>${r.html}</body></html>`;
     zip.file("index.html", html);
-    zip.file("style.css", data?.css_content || "");
+    zip.file("style.css", r.css);
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `${data?.name || "site"}.zip`; a.click();
+    a.href = url; a.download = `${r.name || "site"}.zip`; a.click();
     URL.revokeObjectURL(url);
     toast.success("ZIP downloaded");
   }
+
 
   async function publishShare() {
     await onSave();
