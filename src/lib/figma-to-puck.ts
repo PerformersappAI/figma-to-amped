@@ -1,11 +1,14 @@
 // Deterministic Figma node tree -> Puck Data JSON.
-// Rules:
-// - Only TEXT nodes with real `characters` produce Heading/Paragraph.
-//   Layer names are NEVER used as visible text.
-// - Decorative shapes (RECTANGLE/ELLIPSE/POLYGON/VECTOR/LINE/STAR/BOOLEAN_OPERATION)
-//   are skipped unless they have an IMAGE fill -> Image component.
-// - A shape/frame whose only meaningful text is short (<= 4 words, <= 32 chars)
-//   collapses to a single Button component with that label.
+// Layout-aware:
+// - Top-level frame children are ordered by Y and each maps to ONE Puck block.
+// - Rows (children sharing a Y band, spread across X) collapse into a single
+//   Navbar / CardGrid, never a stack of separate blocks.
+// - Large frames with a background image + text -> single Hero.
+// - Buttons stay inside their parent section (never emitted at top level as
+//   a separate stack).
+// - Layer NAMES are never used as visible text. Decorative shapes
+//   (RECTANGLE/ELLIPSE/POLYGON/VECTOR/LINE/STAR/BOOLEAN_OPERATION) are
+//   skipped at every depth unless they carry an IMAGE fill.
 
 type ImageMap = Record<string, string>;
 
@@ -28,8 +31,16 @@ function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${_counter.toString(36)}`;
 }
 
-function hasImageFill(node: any): boolean {
-  return (node?.fills || []).some((f: any) => f?.type === "IMAGE" && f.imageRef);
+// ---------------- helpers ----------------
+
+function isVisible(n: any): boolean {
+  return !!n && n.visible !== false && n.isMask !== true;
+}
+
+function bbox(n: any): { x: number; y: number; w: number; h: number } | null {
+  const b = n?.absoluteBoundingBox;
+  if (!b) return null;
+  return { x: b.x, y: b.y, w: b.width, h: b.height };
 }
 
 function nodeImageUrl(node: any, imageMap: ImageMap): string | null {
@@ -40,7 +51,7 @@ function nodeImageUrl(node: any, imageMap: ImageMap): string | null {
 }
 
 function firstImageUrl(node: any, imageMap: ImageMap): string | null {
-  if (!node || node.visible === false) return null;
+  if (!isVisible(node)) return null;
   const own = nodeImageUrl(node, imageMap);
   if (own) return own;
   for (const c of node.children || []) {
@@ -53,19 +64,15 @@ function firstImageUrl(node: any, imageMap: ImageMap): string | null {
 type TextItem = { text: string; size: number };
 
 function collectTexts(node: any, out: TextItem[] = []): TextItem[] {
-  if (!node || node.visible === false) return out;
+  if (!isVisible(node)) return out;
   if (node.type === "TEXT" && typeof node.characters === "string" && node.characters.trim()) {
-    out.push({ text: node.characters.trim(), size: node.style?.fontSize || 16 });
+    // Skip single-letter "K"-style leaked glyphs.
+    const t = node.characters.trim();
+    if (t.length >= 2 || /\w{2,}/.test(t)) {
+      out.push({ text: t, size: node.style?.fontSize || 16 });
+    }
   }
   for (const c of node.children || []) collectTexts(c, out);
-  return out;
-}
-
-function collectImages(node: any, imageMap: ImageMap, out: string[] = []): string[] {
-  if (!node || node.visible === false) return out;
-  const own = nodeImageUrl(node, imageMap);
-  if (own) out.push(own);
-  for (const c of node.children || []) collectImages(c, imageMap, out);
   return out;
 }
 
@@ -77,64 +84,75 @@ function isShortLabel(t: string): boolean {
 function isButtonLike(node: any): boolean {
   if (!node) return false;
   const nameLc = (node.name || "").toLowerCase();
-  if (/(^|\W)(btn|button|cta)(\W|$)/.test(nameLc)) {
-    const t = collectTexts(node);
-    if (t.length >= 1 && isShortLabel(t[0].text)) return true;
-  }
-  // Frame/instance with rounded background + single short text
   const texts = collectTexts(node);
   if (texts.length !== 1) return false;
   if (!isShortLabel(texts[0].text)) return false;
-  const bbox = node.absoluteBoundingBox;
-  if (!bbox || bbox.height > 80 || bbox.width > 320) return false;
+  const b = bbox(node);
+  if (!b || b.h > 80 || b.w > 320) return false;
   const hasBg =
     (node.fills || []).some((f: any) => f?.visible !== false && f?.type?.startsWith("SOLID")) ||
     (node.backgroundColor != null) ||
-    (typeof node.cornerRadius === "number" && node.cornerRadius > 0);
+    (typeof node.cornerRadius === "number" && node.cornerRadius > 0) ||
+    /(^|\W)(btn|button|cta)(\W|$)/.test(nameLc);
   return hasBg;
 }
 
-function looksLikeNavbar(node: any): boolean {
-  const bbox = node.absoluteBoundingBox;
-  if (!bbox) return false;
-  if (bbox.height > 140) return false;
-  const texts = collectTexts(node);
+// ---------------- row detection ----------------
+
+function groupIntoRows(children: any[]): any[][] {
+  const withBbox = children.map((c) => ({ node: c, b: bbox(c) })).filter((x) => x.b);
+  withBbox.sort((a, b) => a.b!.y - b.b!.y);
+  const rows: { node: any; b: any }[][] = [];
+  for (const item of withBbox) {
+    const row = rows[rows.length - 1];
+    if (!row) { rows.push([item]); continue; }
+    const ref = row[0].b;
+    const overlap = item.b!.y < ref.y + ref.h * 0.6 && item.b!.y + item.b!.h > ref.y + ref.h * 0.4;
+    if (overlap) row.push(item);
+    else rows.push([item]);
+  }
+  return rows.map((r) => r.sort((a, b) => a.b.x - b.b.x).map((x) => x.node));
+}
+
+// ---------------- section classifiers ----------------
+
+function looksLikeNavbar(section: any): boolean {
+  const b = bbox(section);
+  if (!b || b.h > 160) return false;
+  const texts = collectTexts(section);
   return texts.length >= 2 && texts.every((t) => t.size <= 22);
 }
 
-function looksLikeFooter(node: any): boolean {
-  const bbox = node.absoluteBoundingBox;
-  if (!bbox) return false;
-  if (bbox.height > 400) return false;
-  const nameLc = (node.name || "").toLowerCase();
+function looksLikeFooter(section: any): boolean {
+  const b = bbox(section);
+  if (!b) return false;
+  if (b.h > 500) return false;
+  const nameLc = (section.name || "").toLowerCase();
   if (/footer/.test(nameLc)) return true;
-  const texts = collectTexts(node);
+  const texts = collectTexts(section);
   return texts.length >= 1 && texts.every((t) => t.size <= 18);
 }
 
-function looksLikeHero(node: any, imageMap: ImageMap): boolean {
-  const bbox = node.absoluteBoundingBox;
-  if (!bbox || bbox.height < 320) return false;
-  const bg = firstImageUrl(node, imageMap);
-  const texts = collectTexts(node);
+function looksLikeHero(section: any, imageMap: ImageMap): boolean {
+  const b = bbox(section);
+  if (!b || b.h < 400) return false;
+  const bg = firstImageUrl(section, imageMap);
+  const texts = collectTexts(section);
   const hasBigText = texts.some((t) => t.size >= 28);
   return !!bg && hasBigText;
 }
 
-function detectCardChildren(section: any, imageMap: ImageMap): any[] | null {
-  const children = (section.children || []).filter((c: any) => c?.visible !== false && c?.isMask !== true);
-  if (children.length < 2) return null;
-  const withImg = children.filter((c: any) => firstImageUrl(c, imageMap) && collectTexts(c).length >= 1);
-  if (withImg.length >= Math.min(2, children.length)) return withImg;
-  return null;
-}
+// ---------------- section builders ----------------
 
 function toNavbar(section: any, imageMap: ImageMap): PuckBlock {
   const texts = collectTexts(section);
   const logoUrl = firstImageUrl(section, imageMap) || "";
   const logoText = logoUrl ? "" : texts[0]?.text?.slice(0, 24) || "BRAND";
   const linkTexts = logoUrl ? texts : texts.slice(1);
-  const links = linkTexts.slice(0, 6).map((t) => ({ label: t.text.slice(0, 24), href: "#" }));
+  const links = linkTexts
+    .filter((t) => isShortLabel(t.text))
+    .slice(0, 6)
+    .map((t) => ({ label: t.text.slice(0, 24), href: "#" }));
   return {
     type: "Navbar",
     props: {
@@ -150,8 +168,7 @@ function toHero(section: any, imageMap: ImageMap): PuckBlock {
   const texts = collectTexts(section).sort((a, b) => b.size - a.size);
   const title = texts[0]?.text?.slice(0, 120) || "Welcome";
   const subtitle = texts.slice(1, 3).map((t) => t.text).join(" ").slice(0, 240);
-  // Find a short CTA label if any
-  const cta = texts.find((t) => isShortLabel(t.text) && t !== texts[0]);
+  const cta = texts.find((t) => isShortLabel(t.text) && t.text !== title);
   const bg = firstImageUrl(section, imageMap) || "";
   return {
     type: "Hero",
@@ -163,25 +180,6 @@ function toHero(section: any, imageMap: ImageMap): PuckBlock {
       buttonLabel: cta?.text?.slice(0, 32) || "Learn more",
       buttonHref: "#",
     },
-  };
-}
-
-function toCardGrid(_section: any, cardNodes: any[], imageMap: ImageMap): PuckBlock {
-  const cards = cardNodes.slice(0, 12).map((c) => {
-    const texts = collectTexts(c).sort((a, b) => b.size - a.size);
-    const title = texts[0]?.text?.slice(0, 80) || "";
-    const cta = texts.find((t) => isShortLabel(t.text) && t.text !== title);
-    return {
-      image: firstImageUrl(c, imageMap) || "https://placehold.co/400x300",
-      title: title || "Untitled",
-      buttonLabel: cta?.text?.slice(0, 32) || "Learn more",
-      buttonHref: "#",
-    };
-  });
-  const cols = Math.min(6, Math.max(2, cards.length >= 4 ? 4 : cards.length));
-  return {
-    type: "CardGrid",
-    props: { id: uid("CardGrid"), columns: cols, cards },
   };
 }
 
@@ -203,16 +201,37 @@ function toFooter(section: any): PuckBlock {
   };
 }
 
-// Walk a subtree and emit blocks. Skips decorative shapes and layer names.
-// Collapses button-like frames into a single Button block.
-function walkForBlocks(node: any, imageMap: ImageMap, blocks: PuckBlock[], seenText: Set<string>): void {
-  if (!node || node.visible === false || node.isMask) return;
+function toCardGridFromRow(rowNodes: any[], imageMap: ImageMap): PuckBlock | null {
+  const cards = rowNodes
+    .map((n) => {
+      const img = firstImageUrl(n, imageMap);
+      if (!img) return null;
+      const texts = collectTexts(n).sort((a, b) => b.size - a.size);
+      const title = texts[0]?.text?.slice(0, 80) || "";
+      const cta = texts.find((t) => isShortLabel(t.text) && t.text !== title);
+      return {
+        image: img,
+        title: title || "",
+        buttonLabel: cta?.text?.slice(0, 32) || "",
+        buttonHref: "#",
+      };
+    })
+    .filter(Boolean) as any[];
+  if (cards.length < 2) return null;
+  const cols = Math.min(6, Math.max(2, cards.length >= 4 ? 4 : cards.length));
+  return { type: "CardGrid", props: { id: uid("CardGrid"), columns: cols, cards } };
+}
 
-  // Button collapse: emit one Button and STOP descending into its children.
+// ---------------- generic block extraction ----------------
+
+function walkForBlocks(node: any, imageMap: ImageMap, blocks: PuckBlock[], seen: Set<string>): void {
+  if (!isVisible(node)) return;
+
+  // Button collapse: emit one Button, stop descending.
   if (isButtonLike(node)) {
     const t = collectTexts(node)[0];
-    if (t && !seenText.has("btn:" + t.text)) {
-      seenText.add("btn:" + t.text);
+    if (t && !seen.has("btn:" + t.text)) {
+      seen.add("btn:" + t.text);
       blocks.push({
         type: "Button",
         props: { id: uid("Button"), label: t.text.slice(0, 32), href: "#", variant: "primary" },
@@ -221,12 +240,12 @@ function walkForBlocks(node: any, imageMap: ImageMap, blocks: PuckBlock[], seenT
     return;
   }
 
-  // TEXT node -> Heading or Paragraph based on font size
   if (node.type === "TEXT") {
     const raw = typeof node.characters === "string" ? node.characters.trim() : "";
     if (!raw) return;
-    if (seenText.has("txt:" + raw)) return;
-    seenText.add("txt:" + raw);
+    if (raw.length < 2) return; // skip stray glyphs
+    if (seen.has("txt:" + raw)) return;
+    seen.add("txt:" + raw);
     const size = node.style?.fontSize || 16;
     if (size >= 24) {
       blocks.push({
@@ -248,75 +267,84 @@ function walkForBlocks(node: any, imageMap: ImageMap, blocks: PuckBlock[], seenT
     return;
   }
 
-  // Node with image fill -> Image
   const ownImg = nodeImageUrl(node, imageMap);
   if (ownImg) {
-    if (!seenText.has("img:" + ownImg)) {
-      seenText.add("img:" + ownImg);
-      blocks.push({
-        type: "Image",
-        props: { id: uid("Image"), src: ownImg, alt: "", maxWidth: 1200 },
-      });
+    if (!seen.has("img:" + ownImg)) {
+      seen.add("img:" + ownImg);
+      blocks.push({ type: "Image", props: { id: uid("Image"), src: ownImg, alt: "", maxWidth: 1200 } });
     }
-    // Don't descend into image-fill nodes (their children are usually mask/overlays)
     return;
   }
 
-  // Purely decorative shape with no image fill and no children -> skip
-  if (DECORATIVE_TYPES.has(node.type)) {
-    // Descend only if it somehow has meaningful text children (rare)
-    for (const c of node.children || []) walkForBlocks(c, imageMap, blocks, seenText);
-    return;
-  }
+  // Decorative shape with no image fill: skip entirely — do NOT descend
+  // (children of decorative shapes are usually masks/overlays and their
+  // layer names are noise).
+  if (DECORATIVE_TYPES.has(node.type)) return;
 
-  // Container: recurse into children
-  for (const c of node.children || []) walkForBlocks(c, imageMap, blocks, seenText);
+  // Container: recurse into children in row order (top->bottom, left->right).
+  const visibleChildren = (node.children || []).filter(isVisible);
+  const rows = groupIntoRows(visibleChildren);
+  for (const row of rows) {
+    // If a row is a horizontal band of image-bearing children, collapse to CardGrid.
+    if (row.length >= 3 && row.every((c) => firstImageUrl(c, imageMap))) {
+      const grid = toCardGridFromRow(row, imageMap);
+      if (grid) { blocks.push(grid); continue; }
+    }
+    for (const c of row) walkForBlocks(c, imageMap, blocks, seen);
+  }
 }
 
 function extractSectionBlocks(section: any, imageMap: ImageMap): PuckBlock[] {
   const blocks: PuckBlock[] = [];
   const seen = new Set<string>();
-  for (const c of section.children || []) walkForBlocks(c, imageMap, blocks, seen);
-  // If the section itself is a TEXT / has image fill (unlikely at top level), handle it
+  const visibleChildren = (section.children || []).filter(isVisible);
+  const rows = groupIntoRows(visibleChildren);
+  for (const row of rows) {
+    if (row.length >= 3 && row.every((c) => firstImageUrl(c, imageMap))) {
+      const grid = toCardGridFromRow(row, imageMap);
+      if (grid) { blocks.push(grid); continue; }
+    }
+    for (const c of row) walkForBlocks(c, imageMap, blocks, seen);
+  }
   if (blocks.length === 0) walkForBlocks(section, imageMap, blocks, seen);
   return blocks;
 }
+
+// ---------------- top-level entry ----------------
 
 export function figmaFrameToPuck(frameNode: any, imageMap: ImageMap): PuckData {
   _counter = 0;
   const content: PuckBlock[] = [];
   if (!frameNode) return { content, root: { props: {} } };
 
-  const rawSections: any[] = (frameNode.children || []).filter(
-    (c: any) => c?.visible !== false && c?.isMask !== true,
-  );
-  const sections =
-    rawSections.length === 1 && (rawSections[0].children || []).length > 1
-      ? rawSections[0].children.filter((c: any) => c?.visible !== false && c?.isMask !== true)
-      : rawSections;
+  // Unwrap single-child wrapper frames.
+  let rawSections: any[] = (frameNode.children || []).filter(isVisible);
+  if (rawSections.length === 1 && (rawSections[0].children || []).length > 1) {
+    rawSections = rawSections[0].children.filter(isVisible);
+  }
+
+  // Order sections top-to-bottom by Y.
+  const sections = [...rawSections].sort((a, b) => {
+    const ba = bbox(a), bb = bbox(b);
+    return (ba?.y ?? 0) - (bb?.y ?? 0);
+  });
 
   sections.forEach((section: any, index: number) => {
     const isFirst = index === 0;
     const isLast = index === sections.length - 1;
-    const cards = detectCardChildren(section, imageMap);
 
-    if (isFirst && looksLikeNavbar(section)) {
-      content.push(toNavbar(section, imageMap));
-      return;
+    if (isFirst && looksLikeNavbar(section)) { content.push(toNavbar(section, imageMap)); return; }
+    if (isLast && looksLikeFooter(section)) { content.push(toFooter(section)); return; }
+    if (looksLikeHero(section, imageMap)) { content.push(toHero(section, imageMap)); return; }
+
+    // If this section IS a horizontal row of image children, emit one CardGrid.
+    const visibleChildren = (section.children || []).filter(isVisible);
+    const rows = groupIntoRows(visibleChildren);
+    if (rows.length === 1 && rows[0].length >= 3 && rows[0].every((c) => firstImageUrl(c, imageMap))) {
+      const grid = toCardGridFromRow(rows[0], imageMap);
+      if (grid) { content.push(grid); return; }
     }
-    if (isLast && looksLikeFooter(section)) {
-      content.push(toFooter(section));
-      return;
-    }
-    if (looksLikeHero(section, imageMap)) {
-      content.push(toHero(section, imageMap));
-      return;
-    }
-    if (cards) {
-      content.push(toCardGrid(section, cards, imageMap));
-      return;
-    }
-    // Fallback: emit real text/image/button blocks from within this section.
+
     for (const b of extractSectionBlocks(section, imageMap)) content.push(b);
   });
 
