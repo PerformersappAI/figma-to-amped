@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X, Download, Code2, Link2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { puckConfig, hasPuckData } from "@/lib/puck-config";
+
 
 export function PublishModal({
   open, onClose, projectId, onSave,
