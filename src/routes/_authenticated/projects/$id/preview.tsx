@@ -60,7 +60,7 @@ function PreviewPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => nav({ to: "/upload" })} className="btn-ghost text-xs !py-2 !px-3">Re-upload</button>
           <Link
-            to="/projects/$id/editor" params={{ id }}
+            to="/projects/$id/puck-editor" params={{ id }}
             className="btn-primary text-xs !py-2 !px-3"
           >
             Looks good — open editor →
