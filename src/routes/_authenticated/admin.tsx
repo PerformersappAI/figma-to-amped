@@ -160,7 +160,7 @@ function AdminPage() {
                       <td className="px-4 py-3 text-muted-foreground">{new Date(p.updated_at).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          <Link to="/projects/$id/editor" params={{ id: p.id }} className="btn-ghost !py-1 !px-3 text-xs" title="Open editor">
+                          <Link to="/projects/$id/puck-editor" params={{ id: p.id }} className="btn-ghost !py-1 !px-3 text-xs" title="Open editor">
                             <Pencil size={12} />
                           </Link>
                           {p.is_published && (
