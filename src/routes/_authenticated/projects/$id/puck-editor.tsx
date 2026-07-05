@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Rocket } from "lucide-react";
 import { Puck, type Data } from "@measured/puck";
 import puckCssRaw from "@measured/puck/puck.css?raw";
 import { supabase } from "@/integrations/supabase/client";
 import { puckConfig, EMPTY_PUCK_DATA, ACCENT } from "@/lib/puck-config";
+import { PuckChatPanel } from "@/components/PuckChatPanel";
 
 // Strip the remote @import that lightningcss can't resolve during build.
 const puckCss = (puckCssRaw as string).replace(/@import\s+["']https?:\/\/[^"']+["'];?/g, "");
