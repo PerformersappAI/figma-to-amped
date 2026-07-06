@@ -1,4 +1,5 @@
 import type { Config, Data } from "@measured/puck";
+import type React from "react";
 
 type CardItem = { image: string; title: string; buttonLabel: string; buttonHref: string };
 type MenuLink = { label: string; href: string };
