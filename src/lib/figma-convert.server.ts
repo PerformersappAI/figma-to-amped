@@ -519,7 +519,9 @@ export async function runRenderStep(opts: { page: OwnedPage }) {
   }
 
   const dims = frameDimensions(opts.page.figma_node_tree);
-  const puckResult = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
+  const puckResult = FAITHFUL_MODE_DEFAULT
+    ? { data: figmaFrameToPuckFaithful(opts.page.figma_node_tree, imageMap), method: "faithful" as const, reason: null as string | null }
+    : await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
   console.log("[render] puck conversion for page", opts.page.id, puckResult.method, puckResult.reason || "");
   await supabaseAdmin.from("pages").update({
     html,
