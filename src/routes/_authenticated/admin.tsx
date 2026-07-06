@@ -63,11 +63,11 @@ function AdminPage() {
     if (currentlyAdmin) {
       if (!confirm("Revoke admin from this user?")) return;
       const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
-      if (error) return toast.error(error.message);
+      if (error) return toast.error("Could not revoke admin. You may not have permission.");
       toast.success("Admin revoked");
     } else {
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
-      if (error) return toast.error(error.message);
+      const { error } = await supabase.rpc("grant_admin", { target_user_id: userId });
+      if (error) return toast.error(error.message.includes("Only admins") ? "Only admins can grant the admin role." : "Could not grant admin.");
       toast.success("Admin granted");
     }
     load();
