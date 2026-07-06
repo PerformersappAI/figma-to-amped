@@ -92,6 +92,8 @@ function UploadPage() {
     thumbnail?: string | null;
     error_message?: string | null;
     last_completed_step?: string | null;
+    layoutMethod?: "ai" | "fallback-rules" | null;
+    layoutReason?: string | null;
   };
   const [batch, setBatch] = useState<{ projectId: string; rows: PageRow[]; thumbs: Record<string, string | null> } | null>(null);
   const [starting, setStarting] = useState(false);
