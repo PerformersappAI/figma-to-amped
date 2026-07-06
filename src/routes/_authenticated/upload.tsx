@@ -178,6 +178,12 @@ function UploadPage() {
         body: JSON.stringify({ url: figmaUrl }),
       });
       const data = await r.json();
+      if (r.status === 401) {
+        // Stale token (e.g. old OAuth app was deleted) — clear connection so user reconnects.
+        setFigmaConn(null);
+        try { await fetch("/api/figma/disconnect", { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` } }); } catch { /* ignore */ }
+        throw new Error("Please reconnect Figma — your previous session is no longer valid.");
+      }
       if (!r.ok) throw new Error(data?.error || "Import failed");
       setFigmaResult({ fileKey: data.fileKey, name: data.name, pages: data.pages || [] });
       const totalFrames = (data.pages || []).reduce((s: number, p: any) => s + (p.frames?.length || 0), 0);
