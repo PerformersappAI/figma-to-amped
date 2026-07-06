@@ -142,7 +142,7 @@ export const Route = createFileRoute("/api/figma/convert-batch")({
           return json({ projectId, pageIds: pageIds.map(p => p.pageId) });
         } catch (e: any) {
           console.error("convert-batch error", e);
-          return json({ error: e?.message || "Server error" }, 500);
+          return json({ error: "An internal error occurred. Please try again." }, 500);
         }
       },
     },
