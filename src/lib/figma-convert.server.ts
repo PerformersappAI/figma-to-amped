@@ -512,7 +512,7 @@ export async function runRenderStep(opts: { page: OwnedPage }) {
   }
 
   const dims = frameDimensions(opts.page.figma_node_tree);
-  const puckData = figmaFrameToPuck(opts.page.figma_node_tree, imageMap);
+  const puckData = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
   await supabaseAdmin.from("pages").update({
     html,
     css,
