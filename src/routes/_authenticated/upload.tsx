@@ -662,7 +662,7 @@ function BatchOverlay({
   onRetry,
   onOpen,
 }: {
-  batch: { projectId: string; rows: { id: string; name: string; status: string; figma_node_id: string; error_message?: string | null }[]; thumbs: Record<string, string | null> };
+  batch: { projectId: string; rows: { id: string; name: string; status: string; figma_node_id: string; error_message?: string | null; layoutMethod?: "ai" | "fallback-rules" | null; layoutReason?: string | null }[]; thumbs: Record<string, string | null> };
   onRetry: (pageId: string, nodeId: string) => void;
   onOpen: () => void;
 }) {
