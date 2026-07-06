@@ -52,7 +52,7 @@ export type ConvertedFrame = {
   cost: number;
   usage?: { input_tokens: number; output_tokens: number };
   puckData: any;
-  puckConversion: { method: "ai" | "fallback-rules"; reason: string | null };
+  puckConversion: { method: "ai" | "fallback-rules" | "faithful"; reason: string | null };
 };
 
 async function tfetch(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
