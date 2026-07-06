@@ -699,6 +699,14 @@ function BatchOverlay({
                   {r.status === "failed" && r.error_message && (
                     <div className="text-[11px]" style={{ color: "#ff6b6b" }}>{r.error_message}</div>
                   )}
+                  {r.status === "ready" && r.layoutMethod === "ai" && (
+                    <div className="text-[11px]" style={{ color: "var(--accent)" }}>Layout: AI</div>
+                  )}
+                  {r.status === "ready" && r.layoutMethod === "fallback-rules" && (
+                    <div className="text-[11px]" style={{ color: "#c9a227" }}>
+                      Layout: basic{r.layoutReason ? ` (AI failed: ${r.layoutReason})` : ""}
+                    </div>
+                  )}
                 </div>
                 {r.status === "failed" && (
                   <button onClick={() => onRetry(r.id, r.figma_node_id)} className="text-[10px] font-display uppercase tracking-widest px-2 py-1 rounded" style={{ border: "1px solid var(--accent)", color: "var(--accent)" }}>
