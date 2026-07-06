@@ -19,7 +19,6 @@ const DECORATIVE_TYPES = new Set([
 const ALLOWED_TYPES = new Set([
   "Navbar",
   "Hero",
-  "Section",
   "Heading",
   "Paragraph",
   "Image",
@@ -97,7 +96,6 @@ Allowed component types and their EXACT prop schemas:
 
 - Navbar: { logoUrl: string, logoText: string, links: [{label: string, href: string}] }
 - Hero: { backgroundImage: string, title: string, subtitle: string, buttonLabel: string, buttonHref: string }
-- Section: { background: string (hex), backgroundImage: string, paddingY: number, paddingX: number }
 - Heading: { text: string, level: "h1"|"h2"|"h3", align: "left"|"center"|"right", color: string }
 - Paragraph: { text: string, color: string, align: "left"|"center"|"right" }
 - Image: { src: string, alt: string, maxWidth: number }
@@ -165,7 +163,7 @@ async function callClaude(payload: unknown): Promise<ClaudeOutcome> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, reason: "ANTHROPIC_API_KEY not set" };
   const body = JSON.stringify({
-    model: "claude-sonnet-4-5",
+    model: "claude-sonnet-4-6",
     max_tokens: 8000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: `Figma frame JSON:\n\n${JSON.stringify(payload)}` }],
