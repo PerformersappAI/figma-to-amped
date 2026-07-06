@@ -1,5 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
+import type { Json } from "@/integrations/supabase/types";
 import { errorResult, supabaseForUser, textResult, unauthenticatedResult } from "../supabase";
 
 function isPuckData(value: unknown): value is Record<string, unknown> {
@@ -31,7 +32,7 @@ export default defineTool({
     try {
       const { data, error } = await supabaseForUser(ctx)
         .from("pages")
-        .update({ puck_data: puckData })
+        .update({ puck_data: puckData as Json })
         .eq("project_id", projectId)
         .eq("id", pageId)
         .select("id, name, slug, updated_at")
