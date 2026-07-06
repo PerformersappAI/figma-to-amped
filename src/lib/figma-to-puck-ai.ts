@@ -153,9 +153,17 @@ function ensureIds(data: PuckData): PuckData {
   return data;
 }
 
-async function callClaude(payload: unknown): Promise<PuckData | null> {
+export type PuckConversionResult = {
+  data: PuckData;
+  method: "ai" | "fallback-rules";
+  reason?: string;
+};
+
+type ClaudeOutcome = { ok: true; data: PuckData } | { ok: false; reason: string };
+
+async function callClaude(payload: unknown): Promise<ClaudeOutcome> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) return { ok: false, reason: "ANTHROPIC_API_KEY not set" };
   const body = JSON.stringify({
     model: "claude-sonnet-4-5",
     max_tokens: 8000,
@@ -165,6 +173,8 @@ async function callClaude(payload: unknown): Promise<PuckData | null> {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), 60_000);
   let r: Response;
+  const t0 = Date.now();
+  console.log("[figma-to-puck-ai] calling Claude, payload chars:", body.length);
   try {
     r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -177,34 +187,51 @@ async function callClaude(payload: unknown): Promise<PuckData | null> {
       signal: ac.signal,
     });
   } catch (e: any) {
-    console.error("figma-to-puck-ai network error", e?.message || e);
-    return null;
+    const reason = `network error: ${e?.message || e}`;
+    console.error("[figma-to-puck-ai]", reason);
+    return { ok: false, reason };
   } finally {
     clearTimeout(t);
   }
   if (!r.ok) {
-    console.error("figma-to-puck-ai http", r.status);
-    return null;
+    const txt = await r.text().catch(() => "");
+    const reason = `http ${r.status}: ${txt.slice(0, 200)}`;
+    console.error("[figma-to-puck-ai]", reason);
+    return { ok: false, reason };
   }
   const data = (await r.json().catch(() => null)) as any;
   const text: string = data?.content?.[0]?.text || "";
+  console.log("[figma-to-puck-ai] Claude responded in", Date.now() - t0, "ms, text chars:", text.length);
   const parsed = extractJson(text);
-  if (!validatePuck(parsed)) {
-    console.error("figma-to-puck-ai invalid response shape");
-    return null;
-  }
-  return ensureIds(parsed);
+  if (!parsed) return { ok: false, reason: "no JSON in response" };
+  if (!validatePuck(parsed)) return { ok: false, reason: "response failed schema validation" };
+  return { ok: true, data: ensureIds(parsed) };
 }
 
-export async function figmaFrameToPuckAI(frameNode: any, imageMap: ImageMap): Promise<PuckData> {
+export async function figmaFrameToPuckAI(frameNode: any, imageMap: ImageMap): Promise<PuckConversionResult> {
+  let reason = "unknown";
   try {
     const simplified = simplify(frameNode, imageMap);
-    if (simplified) {
-      const ai = await callClaude(simplified);
-      if (ai && ai.content.length > 0) return ai;
+    if (!simplified) {
+      reason = "could not simplify frame";
+    } else {
+      const outcome = await callClaude(simplified);
+      if (outcome.ok) {
+        if (outcome.data.content.length === 0) {
+          reason = "AI returned empty content array";
+        } else {
+          console.log("[figma-to-puck-ai] AI conversion succeeded, blocks:", outcome.data.content.length);
+          return { data: outcome.data, method: "ai" };
+        }
+      } else {
+        reason = outcome.reason;
+      }
     }
   } catch (e: any) {
-    console.error("figma-to-puck-ai failed, falling back", e?.message || e);
+    reason = `exception: ${e?.message || e}`;
+    console.error("[figma-to-puck-ai] threw, falling back:", reason);
   }
-  return figmaFrameToPuck(frameNode, imageMap);
+  console.warn("[figma-to-puck-ai] falling back to rule-based mapper:", reason);
+  return { data: figmaFrameToPuck(frameNode, imageMap), method: "fallback-rules", reason };
 }
+
