@@ -55,6 +55,7 @@ export const Route = createFileRoute("/api/figma/convert")({
               originalDimensions: { width: result.width, height: result.height },
               usedClaude: result.usedClaude,
               cost: result.cost,
+              puckConversion: result.puckConversion,
             },
           });
         } catch (e: any) {
