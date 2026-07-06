@@ -68,7 +68,7 @@ function PublicPreview() {
 
   return (
     <iframe
-      title="Public preview" srcDoc={loaded.doc} sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+      title="Public preview" srcDoc={loaded.doc} sandbox="allow-scripts allow-forms allow-popups"
       style={{ position: "fixed", inset: 0, width: "100%", height: "100%", border: 0 }}
     />
   );
