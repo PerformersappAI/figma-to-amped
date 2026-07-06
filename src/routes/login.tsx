@@ -3,10 +3,22 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/login")({ component: LoginPage });
+export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    next: typeof search.next === "string" ? search.next : undefined,
+  }),
+  component: LoginPage,
+});
+
+function safeNextPath(next: string | undefined) {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return undefined;
+  return next;
+}
 
 function LoginPage() {
   const nav = useNavigate();
+  const search = Route.useSearch();
+  const nextPath = safeNextPath(search.next);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,12 +32,13 @@ function LoginPage() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/dashboard" },
+          options: { emailRedirectTo: window.location.origin + (nextPath ?? "/dashboard") },
         });
         if (error) throw error;
         if (data.session) {
           toast.success("Account created");
-          nav({ to: "/onboarding" });
+          if (nextPath) window.location.href = nextPath;
+          else nav({ to: "/onboarding" });
         } else {
           toast.success("Check your email to confirm your account.");
         }
@@ -33,7 +46,8 @@ function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back");
-        nav({ to: "/dashboard" });
+        if (nextPath) window.location.href = nextPath;
+        else nav({ to: "/dashboard" });
       }
     } catch (err: any) {
       toast.error(err.message || "Auth failed");

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CanvasEditorRouteImport } from './routes/canvas-editor'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
@@ -20,6 +21,8 @@ import { Route as ApiAiDesignChatRouteImport } from './routes/api/ai-design-chat
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as PreviewProjectIdPageSlugRouteImport } from './routes/preview.$projectId.$pageSlug'
 import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
@@ -31,6 +34,8 @@ import { Route as ApiFigmaDisconnectRouteImport } from './routes/api/figma.disco
 import { Route as ApiFigmaConvertBatchRouteImport } from './routes/api/figma.convert-batch'
 import { Route as ApiFigmaConvertRouteImport } from './routes/api/figma.convert'
 import { Route as ApiFigmaCleanupRouteImport } from './routes/api/figma.cleanup'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedProjectsIdPuckEditorRouteImport } from './routes/_authenticated/projects/$id/puck-editor'
 import { Route as AuthenticatedProjectsIdPreviewRouteImport } from './routes/_authenticated/projects/$id/preview'
 import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_authenticated/projects/$id/editor'
@@ -38,6 +43,11 @@ import { Route as AuthenticatedProjectsIdEditorRouteImport } from './routes/_aut
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -89,6 +99,18 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const PreviewProjectIdPageSlugRoute =
   PreviewProjectIdPageSlugRouteImport.update({
     id: '/$pageSlug',
@@ -145,6 +167,17 @@ const ApiFigmaCleanupRoute = ApiFigmaCleanupRouteImport.update({
   path: '/api/figma/cleanup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjectsIdPuckEditorRoute =
   AuthenticatedProjectsIdPuckEditorRouteImport.update({
     id: '/projects/$id/puck-editor',
@@ -168,13 +201,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/canvas-editor': typeof CanvasEditorRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/api/ai-puck-edit': typeof ApiAiPuckEditRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
@@ -194,13 +232,18 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/canvas-editor': typeof CanvasEditorRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/api/ai-puck-edit': typeof ApiAiPuckEditRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
@@ -222,13 +265,18 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/canvas-editor': typeof CanvasEditorRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/onboarding': typeof OnboardingRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
   '/api/ai-design-chat': typeof ApiAiDesignChatRoute
   '/api/ai-puck-edit': typeof ApiAiPuckEditRoute
   '/preview/$projectId': typeof PreviewProjectIdRouteWithChildren
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/figma/cleanup': typeof ApiFigmaCleanupRoute
   '/api/figma/convert': typeof ApiFigmaConvertRoute
   '/api/figma/convert-batch': typeof ApiFigmaConvertBatchRoute
@@ -250,13 +298,18 @@ export interface FileRouteTypes {
     | '/'
     | '/canvas-editor'
     | '/login'
+    | '/mcp'
     | '/onboarding'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/dashboard'
     | '/upload'
     | '/api/ai-design-chat'
     | '/api/ai-puck-edit'
     | '/preview/$projectId'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/api/figma/cleanup'
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
@@ -276,13 +329,18 @@ export interface FileRouteTypes {
     | '/'
     | '/canvas-editor'
     | '/login'
+    | '/mcp'
     | '/onboarding'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/dashboard'
     | '/upload'
     | '/api/ai-design-chat'
     | '/api/ai-puck-edit'
     | '/preview/$projectId'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/api/figma/cleanup'
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
@@ -303,13 +361,18 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/canvas-editor'
     | '/login'
+    | '/mcp'
     | '/onboarding'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/upload'
     | '/api/ai-design-chat'
     | '/api/ai-puck-edit'
     | '/preview/$projectId'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/api/figma/cleanup'
     | '/api/figma/convert'
     | '/api/figma/convert-batch'
@@ -331,10 +394,15 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   CanvasEditorRoute: typeof CanvasEditorRoute
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
   OnboardingRoute: typeof OnboardingRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiAiDesignChatRoute: typeof ApiAiDesignChatRoute
   ApiAiPuckEditRoute: typeof ApiAiPuckEditRoute
   PreviewProjectIdRoute: typeof PreviewProjectIdRouteWithChildren
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiFigmaCleanupRoute: typeof ApiFigmaCleanupRoute
   ApiFigmaConvertRoute: typeof ApiFigmaConvertRoute
   ApiFigmaConvertBatchRoute: typeof ApiFigmaConvertBatchRoute
@@ -354,6 +422,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -425,6 +500,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/preview/$projectId/$pageSlug': {
       id: '/preview/$projectId/$pageSlug'
@@ -503,6 +592,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFigmaCleanupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/projects/$id/puck-editor': {
       id: '/_authenticated/projects/$id/puck-editor'
       path: '/projects/$id/puck-editor'
@@ -566,10 +669,16 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   CanvasEditorRoute: CanvasEditorRoute,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
   OnboardingRoute: OnboardingRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiAiDesignChatRoute: ApiAiDesignChatRoute,
   ApiAiPuckEditRoute: ApiAiPuckEditRoute,
   PreviewProjectIdRoute: PreviewProjectIdRouteWithChildren,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiFigmaCleanupRoute: ApiFigmaCleanupRoute,
   ApiFigmaConvertRoute: ApiFigmaConvertRoute,
   ApiFigmaConvertBatchRoute: ApiFigmaConvertBatchRoute,

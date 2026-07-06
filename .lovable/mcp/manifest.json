@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://mccraddssixnnxohbons.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "figmaship-mcp",
+      "version": "0.1.0",
+      "title": "FigmaShip"
+    },
+    "tools": [
+      {
+        "name": "list_projects",
+        "title": "List projects",
+        "description": "List the signed-in user's FigmaShip projects.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_project",
+        "title": "Get project",
+        "description": "Get a project and its pages for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "The project ID to inspect."
+            }
+          },
+          "required": [
+            "projectId"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_page_puck_data",
+        "title": "Update page layout",
+        "description": "Replace a page's Puck layout JSON for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "The project that owns the page."
+            },
+            "pageId": {
+              "type": "string",
+              "description": "The page ID to update."
+            },
+            "puckData": {
+              "description": "A complete Puck data object with content and root."
+            }
+          },
+          "required": [
+            "projectId",
+            "pageId",
+            "puckData"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "publish_project",
+        "title": "Publish project",
+        "description": "Mark one of the signed-in user's FigmaShip projects as published.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "The project ID to publish."
+            }
+          },
+          "required": [
+            "projectId"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
