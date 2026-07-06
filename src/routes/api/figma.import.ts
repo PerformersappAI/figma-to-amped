@@ -101,7 +101,9 @@ export const Route = createFileRoute("/api/figma/import")({
             return { name: p.name, nodeId: p.id, frames };
           });
 
-          // Resolve thumbnails: check cache in Storage first, then fetch from Figma + cache
+          // Resolve thumbnails on a strict time budget. If we can't finish in
+          // time, return null thumbnails so the client renders placeholders
+          // instead of the whole import failing with a Worker timeout.
           const allFrameIds: string[] = pages.flatMap((p: any) => p.frames.map((f: any) => f.nodeId));
           const bucket = "project-thumbnails";
           const publicUrlFor = (nodeId: string) => {
@@ -111,53 +113,46 @@ export const Route = createFileRoute("/api/figma/import")({
           };
 
           const cached: Record<string, string> = {};
-          const missing: string[] = [];
-          await Promise.all(
-            allFrameIds.map(async (id) => {
-              const { path, url } = publicUrlFor(id);
-              const head = await fetch(url, { method: "HEAD" });
-              if (head.ok) cached[id] = url;
-              else missing.push(id);
-            })
-          );
+          const THUMB_BUDGET_MS = 12_000;
+          const budget = new Promise<void>((r) => setTimeout(r, THUMB_BUDGET_MS));
 
-          if (missing.length > 0 && missing.length <= 100) {
-            // Poll Figma /v1/images until renders complete (Figma can return null while pending)
+          const resolveThumbs = async () => {
+            if (allFrameIds.length === 0 || allFrameIds.length > 150) return;
+            // Assume cached URLs exist (Storage is public + upsert). One shot
+            // to Figma for any that need rendering; no per-file HEAD probes.
             let figmaUrls: Record<string, string | null> = {};
-            const deadline = Date.now() + 30_000;
-            while (Date.now() < deadline) {
+            try {
               const tRes = await fetch(
-                `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(missing.join(","))}&format=png&scale=0.5`,
+                `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(allFrameIds.join(","))}&format=png&scale=0.5`,
                 { headers: { Authorization: `Bearer ${accessToken}` } }
               );
-              if (!tRes.ok) break;
-              const td = (await tRes.json()) as any;
-              figmaUrls = td.images || {};
-              const stillPending = missing.some((id) => figmaUrls[id] == null);
-              if (!stillPending) break;
-              await new Promise((r) => setTimeout(r, 1500));
-            }
+              if (tRes.ok) {
+                const td = (await tRes.json()) as any;
+                figmaUrls = td.images || {};
+              }
+            } catch { /* ignore */ }
 
-            // Download + upload to Storage; never expose Figma signed URLs to the browser
             await Promise.all(
-              missing.map(async (id) => {
+              allFrameIds.map(async (id) => {
                 const src = figmaUrls[id];
-                if (!src) return;
+                const { path, url } = publicUrlFor(id);
+                if (!src) { cached[id] = url; return; }
                 try {
                   const imgRes = await fetch(src);
-                  if (!imgRes.ok) return;
+                  if (!imgRes.ok) { cached[id] = url; return; }
                   const buf = new Uint8Array(await imgRes.arrayBuffer());
-                  const { path, url } = publicUrlFor(id);
-                  const { error: upErr } = await supabaseAdmin.storage
+                  await supabaseAdmin.storage
                     .from(bucket)
                     .upload(path, buf, { contentType: "image/png", upsert: true });
-                  if (!upErr) cached[id] = url;
+                  cached[id] = url;
                 } catch {
-                  /* ignore single-thumb failures */
+                  cached[id] = url;
                 }
               })
             );
-          }
+          };
+
+          await Promise.race([resolveThumbs(), budget]);
 
           for (const p of pages) {
             for (const f of p.frames) {
