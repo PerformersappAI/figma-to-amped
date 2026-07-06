@@ -165,7 +165,7 @@ async function callClaude(payload: unknown): Promise<ClaudeOutcome> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, reason: "ANTHROPIC_API_KEY not set" };
   const body = JSON.stringify({
-    model: "claude-sonnet-4-5",
+    model: "claude-sonnet-4-6",
     max_tokens: 8000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: `Figma frame JSON:\n\n${JSON.stringify(payload)}` }],
