@@ -21,12 +21,25 @@ export const Route = createFileRoute("/api/ai-design-chat")({
           const { data: userData, error: userErr } = await supa.auth.getUser(token);
           if (userErr || !userData.user) return json({ error: "Unauthorized" }, 401);
 
-          const body = await request.json() as { projectId?: string; messages?: { role: string; content: string }[] };
-          const messages = (body.messages || []).filter(m => m && m.content && (m.role === "user" || m.role === "assistant"));
+          // Reject oversized payloads early to protect API credits
+          const MAX_BODY = 64_000;
+          const raw = await request.text();
+          if (raw.length > MAX_BODY) return json({ error: "Payload too large" }, 413);
+
+          let body: { projectId?: string; messages?: { role: string; content: string }[] };
+          try { body = JSON.parse(raw); } catch { return json({ error: "Invalid JSON" }, 400); }
+
+          const MAX_MSG_CHARS = 4000;
+          const messages = (body.messages || [])
+            .filter(m => m && typeof m.content === "string" && (m.role === "user" || m.role === "assistant"))
+            .map(m => ({ role: m.role, content: m.content.slice(0, MAX_MSG_CHARS) }));
           if (messages.length === 0) return json({ error: "No messages" }, 400);
 
           const apiKey = process.env.ANTHROPIC_API_KEY;
-          if (!apiKey) return json({ error: "ANTHROPIC_API_KEY not configured" }, 500);
+          if (!apiKey) {
+            console.error("ai-design-chat: ANTHROPIC_API_KEY not configured");
+            return json({ error: "An internal error occurred. Please try again." }, 500);
+          }
 
           const r = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
@@ -39,7 +52,7 @@ export const Route = createFileRoute("/api/ai-design-chat")({
               model: "claude-sonnet-4-5",
               max_tokens: 1024,
               system: SYSTEM_PROMPT,
-              messages: messages.slice(-20).map(m => ({ role: m.role, content: m.content })),
+              messages: messages.slice(-20),
             }),
           });
 
@@ -47,14 +60,14 @@ export const Route = createFileRoute("/api/ai-design-chat")({
           if (!r.ok) {
             const t = await r.text();
             console.error("Anthropic error", r.status, t);
-            return json({ error: `AI error: ${r.status}` }, 500);
+            return json({ error: "An internal error occurred. Please try again." }, 500);
           }
           const data = await r.json() as any;
           const reply = data?.content?.[0]?.text || "Sorry, I couldn't generate a response.";
           return json({ reply });
         } catch (err: any) {
           console.error("ai-design-chat error", err);
-          return json({ error: err.message || "Server error" }, 500);
+          return json({ error: "An internal error occurred. Please try again." }, 500);
         }
       },
     },
