@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { convertFrame, collectImageRefs, collectVectorNodeIds } from "@/lib/figma-convert";
-import { figmaFrameToPuck } from "@/lib/figma-to-puck";
+import { figmaFrameToPuckAI } from "@/lib/figma-to-puck-ai";
 
 export class ConvertPhaseError extends Error {
   phase: string;
