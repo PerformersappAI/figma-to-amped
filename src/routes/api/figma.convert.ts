@@ -60,9 +60,10 @@ export const Route = createFileRoute("/api/figma/convert")({
           });
         } catch (e: any) {
           const phase = e instanceof ConvertPhaseError ? e.phase : "unknown";
-          const message = e?.message || "Server error";
-          console.error("figma convert error", phase, message, e?.stack);
-          return json({ error: message, phase }, 500);
+          console.error("figma convert error", phase, e?.message, e?.stack);
+          const userFacingPhases = new Set(["auth", "fetch_node", "figma_api"]);
+          const safePhase = userFacingPhases.has(phase) ? phase : undefined;
+          return json({ error: "An internal error occurred. Please try again.", ...(safePhase ? { phase: safePhase } : {}) }, 500);
         }
       },
     },
