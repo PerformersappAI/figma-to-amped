@@ -138,6 +138,8 @@ function UploadPage() {
               figma_node_id: next.figma_node_id,
               error_message: next.error_message,
               last_completed_step: next.figma_metadata?.last_completed_step ?? null,
+              layoutMethod: next.figma_metadata?.puckConversion?.method ?? null,
+              layoutReason: next.figma_metadata?.puckConversion?.reason ?? null,
             };
             const rows = idx >= 0
               ? prev.rows.map((r, i) => i === idx ? { ...r, ...updated } : r)
