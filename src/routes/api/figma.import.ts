@@ -80,13 +80,31 @@ export const Route = createFileRoute("/api/figma/import")({
           }
 
           // depth=2 to get pages + their immediate frame children
-          const fileRes = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=2`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
+          let fileRes: Response;
+          try {
+            const ac = new AbortController();
+            const to = setTimeout(() => ac.abort(), 25_000);
+            try {
+              fileRes = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=2`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                signal: ac.signal,
+              });
+            } finally {
+              clearTimeout(to);
+            }
+          } catch (netErr: any) {
+            console.error("figma files fetch network error", fileKey, netErr?.message || netErr);
+            return json({ error: `Couldn't reach Figma: ${netErr?.message || "network error"}` }, 502);
+          }
           if (fileRes.status === 404) return json({ error: "Figma file not found." }, 404);
           if (fileRes.status === 403) return json({ error: "You don't have access to this Figma file." }, 403);
           if (fileRes.status === 401) return json({ error: "Your Figma session expired. Please reconnect Figma." }, 401);
-          if (!fileRes.ok) return json({ error: "Couldn't reach Figma. Please try again." }, 502);
+          if (fileRes.status === 429) return json({ error: "Figma rate limit hit. Wait a minute and try again." }, 429);
+          if (!fileRes.ok) {
+            const body = await fileRes.text().catch(() => "");
+            console.error("figma files fetch non-ok", fileKey, fileRes.status, body.slice(0, 500));
+            return json({ error: `Figma returned ${fileRes.status}. ${body.slice(0, 200) || "Try again in a moment."}` }, 502);
+          }
 
           const file = (await fileRes.json()) as any;
           const pages = (file?.document?.children || []).map((p: any) => {
