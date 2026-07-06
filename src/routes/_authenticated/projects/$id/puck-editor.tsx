@@ -185,6 +185,20 @@ function PuckEditorPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {pages.length > 1 && (
+                    <select
+                      value={pageId || ""}
+                      onChange={(e) => switchPage(e.target.value)}
+                      className="font-display uppercase tracking-widest text-[11px] px-2 py-1.5 rounded border"
+                      style={{ background: "#0a0a0a", borderColor: "#2a2a2a", color: "#fff", fontWeight: 700 }}
+                    >
+                      {pages.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name || p.slug || "Untitled"}{p.is_home ? " (home)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <PuckSaveButtons saving={saving} onSave={saveDraft} onPublish={publish} />
                   {actions}
                 </div>
