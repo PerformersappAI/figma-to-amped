@@ -92,6 +92,8 @@ function UploadPage() {
     thumbnail?: string | null;
     error_message?: string | null;
     last_completed_step?: string | null;
+    layoutMethod?: "ai" | "fallback-rules" | null;
+    layoutReason?: string | null;
   };
   const [batch, setBatch] = useState<{ projectId: string; rows: PageRow[]; thumbs: Record<string, string | null> } | null>(null);
   const [starting, setStarting] = useState(false);
@@ -136,6 +138,8 @@ function UploadPage() {
               figma_node_id: next.figma_node_id,
               error_message: next.error_message,
               last_completed_step: next.figma_metadata?.last_completed_step ?? null,
+              layoutMethod: next.figma_metadata?.puckConversion?.method ?? null,
+              layoutReason: next.figma_metadata?.puckConversion?.reason ?? null,
             };
             const rows = idx >= 0
               ? prev.rows.map((r, i) => i === idx ? { ...r, ...updated } : r)
@@ -658,7 +662,7 @@ function BatchOverlay({
   onRetry,
   onOpen,
 }: {
-  batch: { projectId: string; rows: { id: string; name: string; status: string; figma_node_id: string; error_message?: string | null }[]; thumbs: Record<string, string | null> };
+  batch: { projectId: string; rows: { id: string; name: string; status: string; figma_node_id: string; error_message?: string | null; layoutMethod?: "ai" | "fallback-rules" | null; layoutReason?: string | null }[]; thumbs: Record<string, string | null> };
   onRetry: (pageId: string, nodeId: string) => void;
   onOpen: () => void;
 }) {
@@ -694,6 +698,14 @@ function BatchOverlay({
                   <div className="text-sm truncate">{r.name}</div>
                   {r.status === "failed" && r.error_message && (
                     <div className="text-[11px]" style={{ color: "#ff6b6b" }}>{r.error_message}</div>
+                  )}
+                  {r.status === "ready" && r.layoutMethod === "ai" && (
+                    <div className="text-[11px]" style={{ color: "var(--accent)" }}>Layout: AI</div>
+                  )}
+                  {r.status === "ready" && r.layoutMethod === "fallback-rules" && (
+                    <div className="text-[11px]" style={{ color: "#c9a227" }}>
+                      Layout: basic{r.layoutReason ? ` (AI failed: ${r.layoutReason})` : ""}
+                    </div>
                   )}
                 </div>
                 {r.status === "failed" && (

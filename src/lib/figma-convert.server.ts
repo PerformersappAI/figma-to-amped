@@ -46,6 +46,8 @@ export type ConvertedFrame = {
   usedClaude: boolean;
   cost: number;
   usage?: { input_tokens: number; output_tokens: number };
+  puckData: any;
+  puckConversion: { method: "ai" | "fallback-rules"; reason: string | null };
 };
 
 async function tfetch(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
@@ -512,17 +514,28 @@ export async function runRenderStep(opts: { page: OwnedPage }) {
   }
 
   const dims = frameDimensions(opts.page.figma_node_tree);
-  const puckData = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
+  const puckResult = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
+  console.log("[render] puck conversion for page", opts.page.id, puckResult.method, puckResult.reason || "");
   await supabaseAdmin.from("pages").update({
     html,
     css,
-    puck_data: puckData as any,
+    puck_data: puckResult.data as any,
     status: "rendered",
     error_message: null,
-    figma_metadata: mergeFigmaMetadata(opts.page.figma_metadata, { ...dims, last_completed_step: "rendered" }),
+    figma_metadata: mergeFigmaMetadata(opts.page.figma_metadata, {
+      ...dims,
+      last_completed_step: "rendered",
+      puckConversion: { method: puckResult.method, reason: puckResult.reason ?? null },
+    }),
   }).eq("id", opts.page.id);
 
-  return { status: "rendered" as const, html, css, ...dims };
+  return {
+    status: "rendered" as const,
+    html,
+    css,
+    ...dims,
+    puckConversion: { method: puckResult.method, reason: puckResult.reason ?? null },
+  };
 }
 
 export async function runCleanupStep(opts: {
@@ -672,6 +685,8 @@ export async function convertFigmaFrame(opts: {
   }
 
   const dims = frameDimensions(frameNode);
+  const puckResult = await figmaFrameToPuckAI(frameNode, processed.assets);
+  console.log("[convertFigmaFrame] puck conversion", puckResult.method, puckResult.reason || "");
   return {
     html,
     css,
@@ -680,6 +695,8 @@ export async function convertFigmaFrame(opts: {
     usedClaude,
     cost,
     usage,
+    puckData: puckResult.data,
+    puckConversion: { method: puckResult.method, reason: puckResult.reason ?? null },
   };
 }
 
