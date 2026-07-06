@@ -96,7 +96,6 @@ Allowed component types and their EXACT prop schemas:
 
 - Navbar: { logoUrl: string, logoText: string, links: [{label: string, href: string}] }
 - Hero: { backgroundImage: string, title: string, subtitle: string, buttonLabel: string, buttonHref: string }
-- Section: { background: string (hex), backgroundImage: string, paddingY: number, paddingX: number }
 - Heading: { text: string, level: "h1"|"h2"|"h3", align: "left"|"center"|"right", color: string }
 - Paragraph: { text: string, color: string, align: "left"|"center"|"right" }
 - Image: { src: string, alt: string, maxWidth: number }
