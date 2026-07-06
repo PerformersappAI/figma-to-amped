@@ -685,6 +685,8 @@ export async function convertFigmaFrame(opts: {
   }
 
   const dims = frameDimensions(frameNode);
+  const puckResult = await figmaFrameToPuckAI(frameNode, processed.assets);
+  console.log("[convertFigmaFrame] puck conversion", puckResult.method, puckResult.reason || "");
   return {
     html,
     css,
@@ -693,6 +695,8 @@ export async function convertFigmaFrame(opts: {
     usedClaude,
     cost,
     usage,
+    puckData: puckResult.data,
+    puckConversion: { method: puckResult.method, reason: puckResult.reason ?? null },
   };
 }
 
