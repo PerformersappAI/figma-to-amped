@@ -2,6 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { convertFrame, collectImageRefs, collectVectorNodeIds } from "@/lib/figma-convert";
 import { figmaFrameToPuckAI } from "@/lib/figma-to-puck-ai";
+import { figmaFrameToPuckFaithful } from "@/lib/figma-to-puck-faithful";
+
+// Fidelity-first mode is the default for imports. Set to false to fall back
+// to the legacy AI/rule-based component-guessing converter.
+const FAITHFUL_MODE_DEFAULT = true;
 
 export class ConvertPhaseError extends Error {
   phase: string;
@@ -47,7 +52,7 @@ export type ConvertedFrame = {
   cost: number;
   usage?: { input_tokens: number; output_tokens: number };
   puckData: any;
-  puckConversion: { method: "ai" | "fallback-rules"; reason: string | null };
+  puckConversion: { method: "ai" | "fallback-rules" | "faithful"; reason: string | null };
 };
 
 async function tfetch(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
@@ -514,7 +519,9 @@ export async function runRenderStep(opts: { page: OwnedPage }) {
   }
 
   const dims = frameDimensions(opts.page.figma_node_tree);
-  const puckResult = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
+  const puckResult = FAITHFUL_MODE_DEFAULT
+    ? { data: figmaFrameToPuckFaithful(opts.page.figma_node_tree, imageMap), method: "faithful" as const, reason: null as string | null }
+    : await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
   console.log("[render] puck conversion for page", opts.page.id, puckResult.method, puckResult.reason || "");
   await supabaseAdmin.from("pages").update({
     html,
@@ -685,7 +692,9 @@ export async function convertFigmaFrame(opts: {
   }
 
   const dims = frameDimensions(frameNode);
-  const puckResult = await figmaFrameToPuckAI(frameNode, processed.assets);
+  const puckResult = FAITHFUL_MODE_DEFAULT
+    ? { data: figmaFrameToPuckFaithful(frameNode, processed.assets), method: "faithful" as const, reason: null as string | null }
+    : await figmaFrameToPuckAI(frameNode, processed.assets);
   console.log("[convertFigmaFrame] puck conversion", puckResult.method, puckResult.reason || "");
   return {
     html,

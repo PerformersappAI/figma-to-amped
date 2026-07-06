@@ -1,4 +1,5 @@
 import type { Config, Data } from "@measured/puck";
+import type React from "react";
 
 type CardItem = { image: string; title: string; buttonLabel: string; buttonHref: string };
 type MenuLink = { label: string; href: string };
@@ -8,8 +9,147 @@ export const ACCENT = "#c8f000";
 
 export const EMPTY_PUCK_DATA: Data = { content: [], root: { props: {} } };
 
+type FaithfulChild = {
+  kind: "text" | "image" | "button";
+  x: number; y: number; width: number; height: number;
+  text?: string; src?: string; href?: string;
+  fontSize?: number; fontWeight?: number; color?: string;
+  textAlign?: "left" | "center" | "right";
+  backgroundColor?: string;
+};
+
 export const puckConfig: Config = {
   components: {
+    FaithfulSection: {
+      fields: {
+        width: { type: "number", label: "Section width (px)" },
+        height: { type: "number", label: "Section height (px)" },
+        backgroundColor: { type: "text", label: "Background color" },
+        backgroundImage: { type: "text", label: "Background image URL" },
+        children: {
+          type: "array",
+          arrayFields: {
+            kind: {
+              type: "select",
+              options: [
+                { label: "Text", value: "text" },
+                { label: "Image", value: "image" },
+                { label: "Button", value: "button" },
+              ],
+            },
+            x: { type: "number" },
+            y: { type: "number" },
+            width: { type: "number" },
+            height: { type: "number" },
+            text: { type: "textarea", label: "Text / label" },
+            src: { type: "text", label: "Image URL" },
+            href: { type: "text", label: "Link href" },
+            fontSize: { type: "number" },
+            fontWeight: { type: "number" },
+            color: { type: "text", label: "Text color" },
+            textAlign: {
+              type: "select",
+              options: [
+                { label: "Left", value: "left" },
+                { label: "Center", value: "center" },
+                { label: "Right", value: "right" },
+              ],
+            },
+            backgroundColor: { type: "text", label: "Button bg" },
+          },
+          defaultItemProps: {
+            kind: "text",
+            x: 0, y: 0, width: 200, height: 40,
+            text: "New item", src: "", href: "#",
+            fontSize: 16, fontWeight: 400, color: "#ffffff",
+            textAlign: "left", backgroundColor: "",
+          },
+        },
+      },
+      defaultProps: {
+        width: 1440,
+        height: 600,
+        backgroundColor: "#0a0a0a",
+        backgroundImage: "",
+        children: [] as FaithfulChild[],
+      },
+      render: ({ width, height, backgroundColor, backgroundImage, children }: any) => (
+        <section
+          style={{
+            position: "relative",
+            width: "100%",
+            maxWidth: width,
+            height,
+            margin: "0 auto",
+            background: backgroundImage
+              ? `url(${backgroundImage}) center/cover, ${backgroundColor || "transparent"}`
+              : backgroundColor || "transparent",
+            overflow: "hidden",
+          }}
+        >
+          {(children || []).map((c: FaithfulChild, i: number) => {
+            const base: React.CSSProperties = {
+              position: "absolute",
+              left: c.x,
+              top: c.y,
+              width: c.width,
+              height: c.height,
+            };
+            if (c.kind === "image") {
+              return (
+                <img
+                  key={i}
+                  src={c.src || ""}
+                  alt=""
+                  style={{ ...base, objectFit: "cover", display: "block" }}
+                />
+              );
+            }
+            if (c.kind === "button") {
+              return (
+                <a
+                  key={i}
+                  href={c.href || "#"}
+                  style={{
+                    ...base,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: c.textAlign === "left" ? "flex-start" : c.textAlign === "right" ? "flex-end" : "center",
+                    padding: "0 16px",
+                    background: c.backgroundColor || ACCENT,
+                    color: c.color || "#0a0a0a",
+                    fontSize: c.fontSize || 14,
+                    fontWeight: c.fontWeight || 700,
+                    textDecoration: "none",
+                    borderRadius: 4,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {c.text}
+                </a>
+              );
+            }
+            return (
+              <div
+                key={i}
+                style={{
+                  ...base,
+                  color: c.color || "#ffffff",
+                  fontSize: c.fontSize || 16,
+                  fontWeight: c.fontWeight || 400,
+                  textAlign: c.textAlign || "left",
+                  lineHeight: 1.2,
+                  whiteSpace: "pre-wrap",
+                  overflow: "hidden",
+                }}
+              >
+                {c.text}
+              </div>
+            );
+          })}
+        </section>
+      ),
+    },
     Section: {
       fields: {
         background: { type: "text", label: "Background color (hex)" },
