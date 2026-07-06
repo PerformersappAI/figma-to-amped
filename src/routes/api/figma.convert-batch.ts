@@ -46,9 +46,17 @@ export const Route = createFileRoute("/api/figma/convert-batch")({
           try { accessToken = await refreshFigmaTokenIfNeeded(userId, conn); }
           catch { return json({ error: "Your Figma session expired. Please reconnect Figma." }, 401); }
 
-          // Find or create project
+          // Find or create project — verify ownership if projectId supplied
           let projectId = body.projectId || "";
-          if (!projectId) {
+          if (projectId) {
+            const { data: owned } = await supabaseAdmin
+              .from("projects")
+              .select("id")
+              .eq("id", projectId)
+              .eq("user_id", userId)
+              .maybeSingle();
+            if (!owned) return json({ error: "Project not found" }, 404);
+          } else {
             const { data: project, error: projErr } = await supabaseAdmin
               .from("projects")
               .insert({
