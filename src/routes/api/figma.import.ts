@@ -181,7 +181,7 @@ export const Route = createFileRoute("/api/figma/import")({
           return json({ fileKey, name: file?.name, pages });
         } catch (e: any) {
           console.error("figma import error", e);
-          return json({ error: e?.message || "Server error" }, 500);
+          return json({ error: "An internal error occurred. Please try again." }, 500);
         }
       },
     },
