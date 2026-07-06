@@ -512,17 +512,28 @@ export async function runRenderStep(opts: { page: OwnedPage }) {
   }
 
   const dims = frameDimensions(opts.page.figma_node_tree);
-  const puckData = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
+  const puckResult = await figmaFrameToPuckAI(opts.page.figma_node_tree, imageMap);
+  console.log("[render] puck conversion for page", opts.page.id, puckResult.method, puckResult.reason || "");
   await supabaseAdmin.from("pages").update({
     html,
     css,
-    puck_data: puckData as any,
+    puck_data: puckResult.data as any,
     status: "rendered",
     error_message: null,
-    figma_metadata: mergeFigmaMetadata(opts.page.figma_metadata, { ...dims, last_completed_step: "rendered" }),
+    figma_metadata: mergeFigmaMetadata(opts.page.figma_metadata, {
+      ...dims,
+      last_completed_step: "rendered",
+      puckConversion: { method: puckResult.method, reason: puckResult.reason ?? null },
+    }),
   }).eq("id", opts.page.id);
 
-  return { status: "rendered" as const, html, css, ...dims };
+  return {
+    status: "rendered" as const,
+    html,
+    css,
+    ...dims,
+    puckConversion: { method: puckResult.method, reason: puckResult.reason ?? null },
+  };
 }
 
 export async function runCleanupStep(opts: {
