@@ -692,7 +692,9 @@ export async function convertFigmaFrame(opts: {
   }
 
   const dims = frameDimensions(frameNode);
-  const puckResult = await figmaFrameToPuckAI(frameNode, processed.assets);
+  const puckResult = FAITHFUL_MODE_DEFAULT
+    ? { data: figmaFrameToPuckFaithful(frameNode, processed.assets), method: "faithful" as const, reason: null as string | null }
+    : await figmaFrameToPuckAI(frameNode, processed.assets);
   console.log("[convertFigmaFrame] puck conversion", puckResult.method, puckResult.reason || "");
   return {
     html,
