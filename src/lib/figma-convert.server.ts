@@ -2,6 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { convertFrame, collectImageRefs, collectVectorNodeIds } from "@/lib/figma-convert";
 import { figmaFrameToPuckAI } from "@/lib/figma-to-puck-ai";
+import { figmaFrameToPuckFaithful } from "@/lib/figma-to-puck-faithful";
+
+// Fidelity-first mode is the default for imports. Set to false to fall back
+// to the legacy AI/rule-based component-guessing converter.
+const FAITHFUL_MODE_DEFAULT = true;
 
 export class ConvertPhaseError extends Error {
   phase: string;
