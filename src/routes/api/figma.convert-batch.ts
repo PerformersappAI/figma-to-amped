@@ -110,6 +110,7 @@ export const Route = createFileRoute("/api/figma/convert-batch")({
                 status: "ready",
                 html: result.html,
                 css: result.css,
+                puck_data: result.puckData,
                 figma_design_reference_url: result.designReference,
                 figma_metadata: {
                   frameName: result.frameName,
@@ -117,6 +118,7 @@ export const Route = createFileRoute("/api/figma/convert-batch")({
                   height: result.height,
                   usedClaude: result.usedClaude,
                   cost: result.cost,
+                  puckConversion: result.puckConversion,
                 },
                 error_message: null,
               }).eq("id", pageId);
