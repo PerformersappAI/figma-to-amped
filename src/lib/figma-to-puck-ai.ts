@@ -19,7 +19,6 @@ const DECORATIVE_TYPES = new Set([
 const ALLOWED_TYPES = new Set([
   "Navbar",
   "Hero",
-  "Section",
   "Heading",
   "Paragraph",
   "Image",
