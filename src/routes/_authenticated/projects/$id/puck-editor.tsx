@@ -27,10 +27,13 @@ const EMPTY_DATA: Data = EMPTY_PUCK_DATA;
 
 // ---------------- Page component ----------------
 
+type PageRow = { id: string; name: string | null; slug: string | null; is_home: boolean | null; order_index: number | null; puck_data: any };
+
 function PuckEditorPage() {
   const { id } = Route.useParams();
-  
+
   const [projectName, setProjectName] = useState<string>("");
+  const [pages, setPages] = useState<PageRow[]>([]);
   const [pageId, setPageId] = useState<string | null>(null);
   const [initialData, setInitialData] = useState<Data | null>(null);
   const [puckKey, setPuckKey] = useState(0);
@@ -44,20 +47,21 @@ function PuckEditorPage() {
       const { data: proj } = await supabase.from("projects").select("name").eq("id", id).maybeSingle();
       if (!cancelled && proj) setProjectName(proj.name || "Untitled");
 
-      const { data: pages } = await supabase
+      const { data: pageRows } = await supabase
         .from("pages")
-        .select("id, puck_data, is_home, order_index")
+        .select("id, name, slug, puck_data, is_home, order_index")
         .eq("project_id", id)
         .order("is_home", { ascending: false })
-        .order("order_index", { ascending: true })
-        .limit(1);
+        .order("order_index", { ascending: true });
 
       if (cancelled) return;
 
-      const target = pages?.[0];
-      if (target) {
+      const list = (pageRows || []) as PageRow[];
+      if (list.length > 0) {
+        setPages(list);
+        const target = list[0];
         setPageId(target.id);
-        const pd = (target as any).puck_data;
+        const pd = target.puck_data;
         const loaded = pd && typeof pd === "object" && Array.isArray(pd.content) ? (pd as Data) : EMPTY_DATA;
         latestRef.current = loaded;
         _latestData.current = loaded;
@@ -73,9 +77,12 @@ function PuckEditorPage() {
             order_index: 0,
             status: "ready",
           })
-          .select("id")
+          .select("id, name, slug, puck_data, is_home, order_index")
           .single();
-        if (created) setPageId(created.id);
+        if (created) {
+          setPages([created as PageRow]);
+          setPageId(created.id);
+        }
         latestRef.current = EMPTY_DATA;
         _latestData.current = EMPTY_DATA;
         setInitialData(EMPTY_DATA);
@@ -85,6 +92,19 @@ function PuckEditorPage() {
       cancelled = true;
     };
   }, [id]);
+
+  function switchPage(nextId: string) {
+    if (nextId === pageId) return;
+    const target = pages.find((p) => p.id === nextId);
+    if (!target) return;
+    const pd = target.puck_data;
+    const loaded = pd && typeof pd === "object" && Array.isArray(pd.content) ? (pd as Data) : EMPTY_DATA;
+    setPageId(nextId);
+    latestRef.current = loaded;
+    _latestData.current = loaded;
+    setInitialData(loaded);
+    setPuckKey((k) => k + 1);
+  }
 
   async function saveDraft(data: Data) {
     if (!pageId) return toast.error("No page to save to");
