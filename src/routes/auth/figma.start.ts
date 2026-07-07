@@ -40,7 +40,7 @@ export const Route = createFileRoute("/auth/figma/start")({
         authUrl.searchParams.set("redirect_uri", redirectUri);
         authUrl.searchParams.set(
           "scope",
-          "files:read file_content:read file_metadata:read current_user:read"
+          "file_content:read file_metadata:read current_user:read"
         );
         authUrl.searchParams.set("state", state);
         authUrl.searchParams.set("response_type", "code");
