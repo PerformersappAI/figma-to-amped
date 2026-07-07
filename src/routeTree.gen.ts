@@ -26,7 +26,6 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as PreviewProjectIdPageSlugRouteImport } from './routes/preview.$projectId.$pageSlug'
 import { Route as AuthFigmaStartRouteImport } from './routes/auth/figma.start'
 import { Route as AuthFigmaCallbackRouteImport } from './routes/auth/figma.callback'
-import { Route as ApiPublicFigmaDiagnosticRouteImport } from './routes/api/public/figma-diagnostic'
 import { Route as ApiFigmaRenderRouteImport } from './routes/api/figma.render'
 import { Route as ApiFigmaProcessAssetsRouteImport } from './routes/api/figma.process-assets'
 import { Route as ApiFigmaImportRouteImport } from './routes/api/figma.import'
@@ -128,12 +127,6 @@ const AuthFigmaCallbackRoute = AuthFigmaCallbackRouteImport.update({
   path: '/auth/figma/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicFigmaDiagnosticRoute =
-  ApiPublicFigmaDiagnosticRouteImport.update({
-    id: '/api/public/figma-diagnostic',
-    path: '/api/public/figma-diagnostic',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiFigmaRenderRoute = ApiFigmaRenderRouteImport.update({
   id: '/api/figma/render',
   path: '/api/figma/render',
@@ -228,7 +221,6 @@ export interface FileRoutesByFullPath {
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/api/figma/process-assets': typeof ApiFigmaProcessAssetsRoute
   '/api/figma/render': typeof ApiFigmaRenderRoute
-  '/api/public/figma-diagnostic': typeof ApiPublicFigmaDiagnosticRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
@@ -260,7 +252,6 @@ export interface FileRoutesByTo {
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/api/figma/process-assets': typeof ApiFigmaProcessAssetsRoute
   '/api/figma/render': typeof ApiFigmaRenderRoute
-  '/api/public/figma-diagnostic': typeof ApiPublicFigmaDiagnosticRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
@@ -294,7 +285,6 @@ export interface FileRoutesById {
   '/api/figma/import': typeof ApiFigmaImportRoute
   '/api/figma/process-assets': typeof ApiFigmaProcessAssetsRoute
   '/api/figma/render': typeof ApiFigmaRenderRoute
-  '/api/public/figma-diagnostic': typeof ApiPublicFigmaDiagnosticRoute
   '/auth/figma/callback': typeof AuthFigmaCallbackRoute
   '/auth/figma/start': typeof AuthFigmaStartRoute
   '/preview/$projectId/$pageSlug': typeof PreviewProjectIdPageSlugRoute
@@ -328,7 +318,6 @@ export interface FileRouteTypes {
     | '/api/figma/import'
     | '/api/figma/process-assets'
     | '/api/figma/render'
-    | '/api/public/figma-diagnostic'
     | '/auth/figma/callback'
     | '/auth/figma/start'
     | '/preview/$projectId/$pageSlug'
@@ -360,7 +349,6 @@ export interface FileRouteTypes {
     | '/api/figma/import'
     | '/api/figma/process-assets'
     | '/api/figma/render'
-    | '/api/public/figma-diagnostic'
     | '/auth/figma/callback'
     | '/auth/figma/start'
     | '/preview/$projectId/$pageSlug'
@@ -393,7 +381,6 @@ export interface FileRouteTypes {
     | '/api/figma/import'
     | '/api/figma/process-assets'
     | '/api/figma/render'
-    | '/api/public/figma-diagnostic'
     | '/auth/figma/callback'
     | '/auth/figma/start'
     | '/preview/$projectId/$pageSlug'
@@ -424,7 +411,6 @@ export interface RootRouteChildren {
   ApiFigmaImportRoute: typeof ApiFigmaImportRoute
   ApiFigmaProcessAssetsRoute: typeof ApiFigmaProcessAssetsRoute
   ApiFigmaRenderRoute: typeof ApiFigmaRenderRoute
-  ApiPublicFigmaDiagnosticRoute: typeof ApiPublicFigmaDiagnosticRoute
   AuthFigmaCallbackRoute: typeof AuthFigmaCallbackRoute
   AuthFigmaStartRoute: typeof AuthFigmaStartRoute
 }
@@ -548,13 +534,6 @@ declare module '@tanstack/react-router' {
       path: '/auth/figma/callback'
       fullPath: '/auth/figma/callback'
       preLoaderRoute: typeof AuthFigmaCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/figma-diagnostic': {
-      id: '/api/public/figma-diagnostic'
-      path: '/api/public/figma-diagnostic'
-      fullPath: '/api/public/figma-diagnostic'
-      preLoaderRoute: typeof ApiPublicFigmaDiagnosticRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/figma/render': {
@@ -708,7 +687,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFigmaImportRoute: ApiFigmaImportRoute,
   ApiFigmaProcessAssetsRoute: ApiFigmaProcessAssetsRoute,
   ApiFigmaRenderRoute: ApiFigmaRenderRoute,
-  ApiPublicFigmaDiagnosticRoute: ApiPublicFigmaDiagnosticRoute,
   AuthFigmaCallbackRoute: AuthFigmaCallbackRoute,
   AuthFigmaStartRoute: AuthFigmaStartRoute,
 }
