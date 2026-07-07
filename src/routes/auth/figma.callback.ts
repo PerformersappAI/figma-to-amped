@@ -51,8 +51,20 @@ export const Route = createFileRoute("/auth/figma/callback")({
 
         if (!tokenRes.ok) {
           const body = await tokenRes.text();
-          console.error("figma token exchange failed", tokenRes.status, body);
-          return back("error:token_exchange_failed");
+          console.error("figma token exchange failed", {
+            status: tokenRes.status,
+            body,
+            redirectUri,
+            origin: url.origin,
+          });
+          let figmaCode = `http_${tokenRes.status}`;
+          try {
+            const parsed = JSON.parse(body) as { error?: string };
+            if (parsed?.error) figmaCode = parsed.error;
+          } catch {
+            /* not json */
+          }
+          return back(`error:token_exchange_failed:${figmaCode}`);
         }
         const tokenData = (await tokenRes.json()) as {
           access_token: string;
