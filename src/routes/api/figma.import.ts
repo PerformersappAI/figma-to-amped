@@ -100,7 +100,7 @@ export const Route = createFileRoute("/api/figma/import")({
           if (fileRes.status === 403) {
             const body = await fileRes.text().catch(() => "");
             console.error("figma 403", fileKey, body.slice(0, 500));
-            return json({ error: `Figma denied access to this file (403). Your Figma OAuth app may be missing the "files:read" scope — reconnect Figma to re-authorize. Body: ${body.slice(0, 160)}` }, 403);
+            return json({ error: "Figma denied access (403). This usually means the connected Figma account can't open this file — check which Figma account owns it, or share the file with the connected account." }, 403);
           }
           if (fileRes.status === 401) return json({ error: "Your Figma session expired (401). Please reconnect Figma." }, 401);
           if (fileRes.status === 429) return json({ error: "Figma rate limit hit (429). Wait a minute and try again." }, 429);
