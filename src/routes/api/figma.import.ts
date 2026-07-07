@@ -96,10 +96,14 @@ export const Route = createFileRoute("/api/figma/import")({
             console.error("figma files fetch network error", fileKey, netErr?.message || netErr);
             return json({ error: `Couldn't reach Figma: ${netErr?.message || "network error"}` }, 502);
           }
-          if (fileRes.status === 404) return json({ error: "Figma file not found." }, 404);
-          if (fileRes.status === 403) return json({ error: "You don't have access to this Figma file." }, 403);
-          if (fileRes.status === 401) return json({ error: "Your Figma session expired. Please reconnect Figma." }, 401);
-          if (fileRes.status === 429) return json({ error: "Figma rate limit hit. Wait a minute and try again." }, 429);
+          if (fileRes.status === 404) return json({ error: "Figma file not found (404). Check the URL." }, 404);
+          if (fileRes.status === 403) {
+            const body = await fileRes.text().catch(() => "");
+            console.error("figma 403", fileKey, body.slice(0, 500));
+            return json({ error: `Figma denied access to this file (403). Your Figma OAuth app may be missing the "files:read" scope — reconnect Figma to re-authorize. Body: ${body.slice(0, 160)}` }, 403);
+          }
+          if (fileRes.status === 401) return json({ error: "Your Figma session expired (401). Please reconnect Figma." }, 401);
+          if (fileRes.status === 429) return json({ error: "Figma rate limit hit (429). Wait a minute and try again." }, 429);
           if (!fileRes.ok) {
             const body = await fileRes.text().catch(() => "");
             console.error("figma files fetch non-ok", fileKey, fileRes.status, body.slice(0, 500));
